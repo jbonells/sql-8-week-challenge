@@ -1,6 +1,6 @@
 # Questions and Solutions
 
-##1. What is the total amount each customer spent at the restaurant?
+### 1. What is the total amount each customer spent at the restaurant?
 
 ````sql
 SELECT
@@ -29,7 +29,7 @@ ORDER BY sales.customer_id ASC;
 - Customer B spent $74.
 - Customer C spent $36.
 
-##2. How many days has each customer visited the restaurant?
+### 2. How many days has each customer visited the restaurant?
 ````sql
 
 ````
