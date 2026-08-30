@@ -23,5 +23,5 @@ This repository contains my solutions and case study write-ups for [Danny Ma's 8
 ## 🚀 How to Run the Code
 1. Clone this repository to your local machine: `git clone https://github.com/jbonells/sql-8-week-challenge.git`
 2. Open your preferred PostgreSQL client (e.g., pgAdmin or DBeaver).
-3. Navigate to the specific case study folder (e.g., `01_dannys_diner/`) and execute the `schema.sql` file to set up the database and tables.
+3. Navigate to the specific case study folder (e.g., `Case Study #1 - Danny's Diner/`) and execute the `schema.sql` file to set up the database and tables.
 4. Run the queries in `solutions.sql` to explore the data and review the findings.
