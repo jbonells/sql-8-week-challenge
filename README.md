@@ -1,16 +1,15 @@
 # 🍜 8 Week SQL Challenge (PostgreSQL)
-
 This repository contains my solutions and case study write-ups for [Danny Ma's 8 Week SQL Challenge](https://8weeksqlchallenge.com/). I am using PostgreSQL to solve complex, real-world business problems ranging from transactional data cleaning to advanced customer analytics and subscription metrics.
 
 ## 📚 Table of Contents
-* [Case Study #1: Danny's Diner](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%231%20-%20Danny's%20Diner/README.md)
-* [Case Study #2: Pizza Runner](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%232%20-%20Pizza%20Runner/README.md)
-* [Case Study #3: Foodie-Fi](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%233%20-%20Foodie-Fi/README.md)
-* [Case Study #4: Data Bank](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%234%20-%20Data%20Bank/README.md)
-* [Case Study #5: Data Mart](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%235%20-%20Data%20Mart/README.md)
-* [Case Study #6: Clique Bait](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%236%20-%20Clique%20Bait/README.md)
-* [Case Study #7: Balanced Tree](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%237%20-%20Balanced%20Tree%20Clothing%20Co/README.md)
-* [Case Study #8: Fresh Segments](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%238%20-%20Fresh%20Segments/README.md)
+* [Case Study #1: Danny's Diner](./Case%20Study%20%231%20-%20Danny%27s%20Diner/)
+* [Case Study #2: Pizza Runner](./Case%20Study%20%232%20-%20Pizza%20Runner/)
+* [Case Study #3: Foodie-Fi](./Case%20Study%20%233%20-%20Foodie-Fi/)
+* [Case Study #4: Data Bank](./Case%20Study%20%234%20-%20Data%20Bank/)
+* [Case Study #5: Data Mart](./Case%20Study%20%235%20-%20Data%20Mart/)
+* [Case Study #6: Clique Bait](./Case%20Study%20%236%20-%20Clique%20Bait/)
+* [Case Study #7: Balanced Tree Clothing Co](./Case%20Study%20%237%20-%20Balanced%20Tree%20Clothing%20Co/)
+* [Case Study #8: Fresh Segments](./Case%20Study%20%238%20-%20Fresh%20Segments/)
 
 ## 🛠️ Technical Environment
 * **Database:** PostgreSQL
