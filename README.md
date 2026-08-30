@@ -3,16 +3,14 @@
 This repository contains my solutions and case study write-ups for [Danny Ma's 8 Week SQL Challenge](https://8weeksqlchallenge.com/). I am using PostgreSQL to solve complex, real-world business problems ranging from transactional data cleaning to advanced customer analytics and subscription metrics.
 
 ## 📚 Table of Contents
-| # | Case Study | Status | Key Focus Areas & Tech Stack |
-|----|--------------------------------|-----------------|----------------------------------------------------------------------------------|
-| 01 | **Danny's Diner**              | 🟢 Completed   | Basic aggregations, joins, ranking window functions (`ROW_NUMBER`, `DENSE_RANK`) |
-| 02 | **Pizza Runner**               | 🟡 In Progress | Data cleansing, handling `NULL` values, string manipulation, date math           |
-| 03 | **Foodie-Fi**                  | ⚪ Planned     | Subscription metrics, customer churn, customer journey tracking (`LEAD`, `LAG`)  |
-| 04 | **Data Bank**                  | ⚪ Planned     | Customer transactions, data re-allocation, regional metrics                      |
-| 05 | **Data Mart**                  | ⚪ Planned     | Data modification, pre/post comparative analysis                                 |
-| 06 | **Clique Bait**                | ⚪ Planned     | Digital footprint analysis, funnel conversion metrics                            |
-| 07 | **Balanced Tree Clothing Co.** | ⚪ Planned     | High-level product metrics, transaction analysis                                 |
-| 08 | **Fresh Segments**             | ⚪ Planned     | Interest metrics, metrics aggregation                                            |
+* [Case Study #1: Danny's Diner](https://github.com/jbonells/sql-8-week-challenge/blob/main/Case%20Study%20%231%20-%20Danny's%20Diner/README.md)
+* [Case Study #2: Pizza Runner]()
+* [Case Study #3: Foodie-Fi]()
+* [Case Study #4: Data Bank]()
+* [Case Study #5: Data Mart]()
+* [Case Study #6: Clique Bait]()
+* [Case Study #7: Balanced Tree]()
+* [Case Study #8: Fresh Segments]()
 
 ## 🛠️ Technical Environment
 * **Database:** PostgreSQL
