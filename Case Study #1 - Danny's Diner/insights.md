@@ -1,6 +1,6 @@
 # Questions and Solutions
 
-**1. What is the total amount each customer spent at the restaurant?**
+##1. What is the total amount each customer spent at the restaurant?
 
 ````sql
 SELECT
@@ -14,9 +14,9 @@ ORDER BY sales.customer_id ASC;
 ````
 
 #### Steps:
-- Use **JOIN** to merge `dannys_diner.sales` and `dannys_diner.menu` tables as `sales.customer_id` and `menu.price` are from both tables.
+- Use **JOIN** to merge `sales` and `menu` tables as `sales.customer_id` and `menu.price` are from those tables.
 - Use **SUM** to calculate the total sales contributed by each customer.
-- Group the aggregated results by `sales.customer_id`. 
+- Group the aggregated results by `customer_id`.
 
 #### Answer:
 | customer_id | total_sales |
@@ -29,6 +29,12 @@ ORDER BY sales.customer_id ASC;
 - Customer B spent $74.
 - Customer C spent $36.
 
-***
+##2. How many days has each customer visited the restaurant?
+````sql
 
-**2. How many days has each customer visited the restaurant?**
+````
+
+#### Steps:
+- 
+
+#### Answer:
