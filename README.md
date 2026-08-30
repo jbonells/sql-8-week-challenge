@@ -2,7 +2,7 @@
 
 This repository contains my solutions and case study write-ups for [Danny Ma's 8 Week SQL Challenge](https://8weeksqlchallenge.com/). I am using PostgreSQL to solve complex, real-world business problems ranging from transactional data cleaning to advanced customer analytics and subscription metrics.
 
-## 📂 Case Studies & Progress
+## 📚 Table of Contents
 | # | Case Study | Status | Key Focus Areas & Tech Stack |
 |----|--------------------------------|-----------------|----------------------------------------------------------------------------------|
 | 01 | **Danny's Diner**              | 🟢 Completed   | Basic aggregations, joins, ranking window functions (`ROW_NUMBER`, `DENSE_RANK`) |
