@@ -25,4 +25,8 @@ This repository contains my solutions and case study write-ups for [Danny Ma's 8
 2. Open your preferred PostgreSQL client (e.g., pgAdmin or DBeaver).
 3. Navigate to the specific case study folder (e.g., `Case Study #1 - Danny's Diner/`) and execute the `schema.sql` file to set up the database and tables.
 4. Run the queries in `solutions.sql` to explore the data and review the findings.
+<<<<<<< Updated upstream
 5. Check `insights.md` to understand my solutions.
+=======
+5. Check `insights.md` to understand my solutions.
+>>>>>>> Stashed changes
