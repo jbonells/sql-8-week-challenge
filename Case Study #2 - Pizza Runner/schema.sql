@@ -113,3 +113,24 @@ VALUES
   (10, 'Salami'),
   (11, 'Tomatoes'),
   (12, 'Tomato Sauce');
+
+
+CREATE TEMP TABLE t_customer_orders AS
+SELECT
+    order_id,
+    customer_id,
+    pizza_id,
+    NULLIF(NULLIF(exclusions, 'null'), '') AS exclusions,
+    NULLIF(NULLIF(extras, 'null'), '') AS extras,
+    order_time
+FROM customer_orders;
+
+CREATE TEMP TABLE t_runner_orders AS
+SELECT
+    order_id,
+    runner_id,
+    NULLIF(NULLIF(pickup_time, 'null'), '')::TIMESTAMP AS pickup_time,
+    NULLIF(REGEXP_REPLACE(distance, '[^0-9.]', '', 'g'), '')::NUMERIC AS distance,
+    NULLIF(REGEXP_REPLACE(duration, '[^0-9]', '', 'g'), '')::INTEGER AS duration,
+    NULLIF(NULLIF(cancellation, 'null'), '') AS cancellation
+FROM runner_orders;

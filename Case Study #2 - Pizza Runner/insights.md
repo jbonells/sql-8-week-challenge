@@ -4,13 +4,8 @@
 
 ````sql
 SELECT
-	s.customer_id,
-	SUM(m.price) AS total_sales
-FROM sales s
-INNER JOIN menu m
-	ON s.product_id = m.product_id
-GROUP BY s.customer_id
-ORDER BY s.customer_id ASC;
+	COUNT(*) AS pizza_order_count
+FROM t_customer_orders;
 ````
 
 #### Steps:
@@ -32,7 +27,5 @@ ORDER BY s.customer_id ASC;
 
 ### 2. How many days has each customer visited the restaurant?
 ````sql
-SELECT
-	COUNT(*) AS pizza_order_count
-FROM #customer_orders;
+
 ````

@@ -42,7 +42,3 @@ SELECT
     NULLIF(NULLIF(cancellation, 'null'), '') AS cancellation
 FROM runner_orders;
 ````
-
-***
-
-Click here for [solution](https://github.com/katiehuangx/8-Week-SQL-Challenge/blob/main/Case%20Study%20%232%20-%20Pizza%20Runner/A.%20Pizza%20Metrics.md) to **A. Pizza Metrics**!
