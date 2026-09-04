@@ -1,7 +1,7 @@
 # 🍕 Case Study #2: Pizza Runner
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-2">
-		<img src="../assets/case_study_1.png" alt="Case Study #2 - Pizza Runner" width="500" height="520">
+		<img src="../assets/case_study_2.png" alt="Case Study #2 - Pizza Runner" width="500" height="520">
 	</a>
 </p>
 
