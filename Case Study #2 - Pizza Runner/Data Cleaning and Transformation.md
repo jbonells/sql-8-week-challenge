@@ -28,7 +28,7 @@ Our course of action to clean the `runner_orders` table will be create a tempora
 - Remove empty strings ('') or null strings ('null') with **NULL** and any trailing string such as 'km' in the `distance` column.
 - Cast the `distance` column as **NUMERIC**.
 - Remove empty strings ('') or null strings ('null') with **NULL** and any trailing string such as "minutes", "minute", or "mins" in the `duration` column.
-- Cast the  `duration` column as **INTEGER***.
+- Cast the  `duration` column as **INTEGER**.
 - Remove empty strings ('') or null strings ('null') with **NULL** in the `cancellation` column.
 
 ````sql
