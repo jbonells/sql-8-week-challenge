@@ -42,3 +42,5 @@ SELECT
     NULLIF(NULLIF(cancellation, 'null'), '') AS cancellation
 FROM runner_orders;
 ````
+
+### We will add the code to `schema.sql` to be able to run the scripts in Fiddle.
