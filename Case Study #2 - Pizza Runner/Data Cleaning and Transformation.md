@@ -43,4 +43,4 @@ SELECT
 FROM runner_orders;
 ````
 
-### We will add the code to `schema.sql` to be able to run the scripts in Fiddle.
+### I have added both temp tables to `schema.sql` to run the solution easily.
