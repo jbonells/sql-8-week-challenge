@@ -1,4 +1,4 @@
-# A. Pizza Metrics
+## A. Pizza Metrics
 
 ### 1. How many pizzas were ordered?
 
@@ -281,7 +281,7 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 - There is 1 pizza ordered on Sunday.
 
 
-# B. Runner and Customer Experience
+## B. Runner and Customer Experience
 
 ### 1. How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
 ````sql
@@ -522,7 +522,7 @@ ORDER BY runner_id;
 - Runner 3 has 50% successful delivery rate.
 
 
-# C. Ingredient Optimisation
+## C. Ingredient Optimisation
 
 ### 1. What are the standard ingredients for each pizza?
 ````sql
