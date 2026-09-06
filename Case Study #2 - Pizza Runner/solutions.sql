@@ -383,3 +383,102 @@ JOIN final_order_ingredients foi
 ORDER BY no.record_id;
 
 -- 6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+WITH numbered_orders AS (
+    SELECT
+        ROW_NUMBER() OVER () AS record_id,
+        co.order_id,
+        co.pizza_id,
+  		co.extras,
+        co.exclusions
+    FROM t_customer_orders co
+  	INNER JOIN t_runner_orders ro
+		ON co.order_id = ro.order_id
+  		AND ro.cancellation IS NULL
+),
+base_ingredients AS (
+    SELECT
+        no.record_id,
+        topping::INTEGER AS topping_id
+    FROM numbered_orders no
+    JOIN pizza_recipes pr
+		ON no.pizza_id = pr.pizza_id
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS topping
+),
+extra_ingredients AS (
+    SELECT
+        no.record_id,
+        topping::INTEGER AS topping_id
+    FROM numbered_orders no
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.extras, '[,\s]+') AS topping
+    WHERE no.extras IS NOT NULL
+),
+combined_ingredients AS (
+    -- Base ingredients
+    SELECT
+		record_id,
+		topping_id
+	FROM base_ingredients
+	
+    UNION ALL
+	
+    -- Extra ingredients added to the order
+    SELECT
+		record_id,
+		topping_id
+	FROM extra_ingredients
+    
+    EXCEPT ALL
+    
+    -- Excluded ingredients removed from the order
+    SELECT 
+        no.record_id,
+        topping::INTEGER AS topping_id
+    FROM numbered_orders no
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.exclusions, '[,\s]+') AS topping
+    WHERE no.exclusions IS NOT NULL
+)
+
+SELECT
+    pt.topping_name,
+    COUNT(*) AS quantity
+FROM combined_ingredients ci
+INNER JOIN pizza_toppings pt
+	ON ci.topping_id = pt.topping_id
+GROUP BY pt.topping_name
+ORDER BY quantity DESC;
+
+
+-- D. Pricing and Ratings
+
+-- 1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
+SELECT
+    SUM(CASE
+    	WHEN co.pizza_id = 1 THEN 12
+        ELSE 10
+    END) AS revenue
+FROM t_customer_orders co
+INNER JOIN t_runner_orders ro
+	ON co.order_id = ro.order_id
+	AND ro.cancellation IS NULL
+
+-- 2. What if there was an additional $1 charge for any pizza extras?
+--    Add cheese is $1 extra
+
+
+-- 3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
+
+
+-- 4. Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
+--    - customer_id
+--    - order_id
+--    - runner_id
+--    - rating
+--    - order_time
+--    - pickup_time
+--    - Time between order and pickup
+--    - Delivery duration
+--    - Average speed
+--    - Total number of pizzas
+
+
+-- 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre traveled - how much money does Pizza Runner have left over after these deliveries?
