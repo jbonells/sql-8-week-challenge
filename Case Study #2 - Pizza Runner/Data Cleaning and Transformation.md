@@ -43,4 +43,4 @@ SELECT
 FROM runner_orders;
 ````
 
-### I have added both temp tables to `schema.sql` to run the solution easily.
+**NOTE:** I have added both temp tables to `schema.sql` to run the solution easily.
