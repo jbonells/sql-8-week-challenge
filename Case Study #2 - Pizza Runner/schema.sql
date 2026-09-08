@@ -24,7 +24,6 @@ CREATE TABLE customer_orders (
   "extras" VARCHAR(4),
   "order_time" TIMESTAMP
 );
-
 INSERT INTO customer_orders
   ("order_id", "customer_id", "pizza_id", "exclusions", "extras", "order_time")
 VALUES
@@ -53,7 +52,6 @@ CREATE TABLE runner_orders (
   "duration" VARCHAR(10),
   "cancellation" VARCHAR(23)
 );
-
 INSERT INTO runner_orders
   ("order_id", "runner_id", "pickup_time", "distance", "duration", "cancellation")
 VALUES
@@ -125,6 +123,7 @@ SELECT
     order_time
 FROM customer_orders;
 
+
 CREATE TEMP TABLE t_runner_orders AS
 SELECT
     order_id,
@@ -134,3 +133,21 @@ SELECT
     NULLIF(REGEXP_REPLACE(duration, '[^0-9]', '', 'g'), '')::INTEGER AS duration,
     NULLIF(NULLIF(cancellation, 'null'), '') AS cancellation
 FROM runner_orders;
+
+
+DROP TABLE IF EXISTS runner_ratings;
+CREATE TABLE runner_ratings (
+    order_id INTEGER PRIMARY KEY,
+    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5)
+);
+INSERT INTO runner_ratings
+	(order_id, rating)
+VALUES
+	(1, 5),
+	(2, 4),
+	(3, 5),
+	(4, 3),
+	(5, 5),
+	(7, 4),
+	(8, 5),
+	(10, 2);
