@@ -472,7 +472,7 @@ ORDER BY runner_id, order_id;
 
 #### Steps:
 - Apply a **WHERE** clause to filter out incomplete records by keeping only rows where both `duration IS NOT NULL` and `distance IS NOT NULL`.
-- Divide the `distance` by `duration` to calculate kilometers per minute, and multiply by 60 to convert it into kilometers per hour (km/h).
+- Divide the `distance` by `duration` to calculate kilometres per minute, and multiply by 60 to convert it into kilometres per hour (km/h).
 - (Optional) Order the final dataset in ascending sequence by `runner_id` and `order_id` for structured presentation.
 
 #### Answer:
@@ -1027,7 +1027,7 @@ LEFT JOIN runner_ratings rr
 - Use a **LEFT JOIN** on `order_id` to connect the `t_customer_orders` and `runner_ratings` tables.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
 - (Optional) Wrap it in **ROUND** to produce a clean whole-number metric.
-- Divide the `distance` by `duration` to calculate kilometers per minute, and multiply by 60 to convert it into kilometers per hour (km/h).
+- Divide the `distance` by `duration` to calculate kilometres per minute, and multiply by 60 to convert it into kilometres per hour (km/h).
 - Use the window function **COUNT() OVER ()** to partition by `order_id` to calculate the total number of pizzas for each order.
 
 #### Answer:
@@ -1046,7 +1046,7 @@ LEFT JOIN runner_ratings rr
 | 104         | 10       | 1         | 2      | 2021-01-11 18:34:49 | 2021-01-11 18:50:20 | 16              | 10       | 60.00         | 2            |
 | 104         | 10       | 1         | 2      | 2021-01-11 18:34:49 | 2021-01-11 18:50:20 | 16              | 10       | 60.00         | 2            |
 
-### 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre traveled - how much money does Pizza Runner have left over after these deliveries?
+### 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre travelled - how much money does Pizza Runner have left over after these deliveries?
 ````sql
 WITH total_payouts AS (
     SELECT
@@ -1094,7 +1094,7 @@ FROM total_revenue tr, total_payouts tp;
 ## E. Bonus Questions
 
 ### 1. If Danny wants to expand his range of pizzas - how would this impact the existing data design?
-Relational databases are built for data expansion, the schema structure itself doesn't need to change at all. Expanding the range of pizzas only requires data updates (inserts) rather than a design redesign.
+Relational databases are built for data expansion; the schema structure itself doesn't need to change at all. Expanding the range of pizzas only requires data updates (inserts) rather than a design redesign.
 
 ### 2. Write an INSERT statement to demonstrate what would happen if a new Supreme pizza with all the toppings was added to the Pizza Runner menu?
 ````sql
