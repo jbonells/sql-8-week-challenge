@@ -475,10 +475,60 @@ WHERE plan_id = 2
 - upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
 - once a customer churns they will no longer make payments
 ````sql
-
+WITH customer_plans AS (
+    SELECT
+        s.customer_id,
+        s.plan_id,
+        p.plan_name,
+        s.start_date,
+        LEAD(s.start_date) OVER (
+            PARTITION BY s.customer_id
+            ORDER BY s.start_date
+        ) AS next_plan_date,
+        p.price AS amount
+    FROM subscriptions s
+    INNER JOIN plans p
+        ON s.plan_id = p.plan_id
+    WHERE s.plan_id <> 0
+),
+generated_payments AS (
+    SELECT
+        customer_id,
+        plan_id,
+        plan_name,
+        generate_series(
+            start_date,
+            LEAST(next_plan_date - INTERVAL '1 day', '2020-12-31'::DATE),
+            CASE
+                WHEN plan_id IN (1, 2) THEN INTERVAL '1 month'
+                WHEN plan_id = 3 THEN INTERVAL '1 year'
+            END
+        )::DATE AS payment_date,
+        amount
+    FROM customer_plans
+    WHERE plan_id <> 4
+)
+SELECT
+    customer_id,
+    plan_id,
+    plan_name,
+    payment_date,
+    amount,
+    ROW_NUMBER() OVER (
+        PARTITION BY customer_id
+        ORDER BY payment_date
+    ) AS payment_order
+FROM generated_payments
+ORDER BY customer_id, payment_date;
 ````
 
 #### Steps:
--
-
-#### Answer:
+- Define a Common Table Expression (`customer_plans`) to process the `subscriptions` table.
+- Use **LEAD() OVER ()** to get the next plan date when there is a change of plan.
+- Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
+- Apply a filter condition (`plan_id <> 0`) to exclude customer's initial free trial.
+- Define a Common Table Expression (`generated_payments`) to process the `customer_plans` CTE.
+- Use **generate_series()** to construct the payment schedule, while using a **CASE** statement to dynamically adjusting intervals for monthly versus annual plans.
+- Use **LEAST()** for capping the series at either the `next_plan_date` minus one day or 31 of December 2020.
+- Apply a filter condition (`plan_id <> 4`) to exclude churned customer so payments will stop.
+- Run the final query using **ROW_NUMBER() OVER ()** to assign a chronological sequence to each customer's payment.
