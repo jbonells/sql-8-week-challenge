@@ -72,8 +72,6 @@ FROM subscriptions;
 | --------- |
 | 1000      |
 
-- Foodie-Fi has had 1,000 customers.
-
 ### 2. What is the monthly distribution of trial plan start_date values for our dataset - use the start of the month as the group by value
 ````sql
 SELECT 
@@ -135,11 +133,6 @@ ORDER BY s.plan_id;
 | 2       | churn         | 71          |
 | 3       | pro monthly   | 60          |
 | 4       | basic monthly | 8           |
-
-- There are 63 pro annual plans in 2021.
-- There are 60 pro monthly plans in 2021.
-- There are 8 basic monthly plans in 2021.
-- There are 71 customers who have churned in 2021.
 
 ### 4. What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
 ````sql
@@ -464,7 +457,7 @@ WHERE plan_id = 2
 | -------------------- |
 | 0                    |
 
-- There were no customers who downgraded from a pro monthly to a basic monthly plan in 2020
+- There were no customers who downgraded from a pro monthly to a basic monthly plan in 2020.
 
 
 ## C. Runner and Customer Experience
