@@ -17,7 +17,7 @@ FROM t_customer_orders;
 | ----------------- |
 | 14                |
 
-- Customers ordered 14 pizzas.
+- There were 14 pizzas ordered.
 
 ### 2. How many unique customer orders were made?
 ````sql
@@ -35,7 +35,7 @@ FROM t_customer_orders;
 | ------------------ |
 | 10                 |
 
-- Customers ordered 10 times.
+- There were 10 unique customer orders.
 
 ### 3. How many successful orders were delivered by each runner?
 ````sql
@@ -58,10 +58,6 @@ GROUP BY runner_id;
 | 1         | 4                 |
 | 2         | 3                 |
 | 3         | 1                 |
-
-- Runner 1 delivered 4 orders.
-- Runner 2 delivered 3 orders.
-- Runner 3 delivered 1 orders.
 
 ### 4. How many of each type of pizza was delivered?
 ````sql
@@ -88,8 +84,7 @@ ORDER BY co.pizza_id;
 | 1        | 9                |
 | 2        | 3                |
 
-- Pizza 1 was delivered 9 times.
-- Pizza 2 was delivered 3 times.
+- Pizza 1 was ordered three times more than pizza 2.
 
 ### 5. How many Vegetarian and Meatlovers were ordered by each customer?
 ````sql
@@ -155,8 +150,6 @@ FROM orders
 | max_pizzas_delivered |
 | -------------------- |
 | 3                    |
-
-- The maximum number of pizzas delivered in a single order is 3 pizzas.
 
 ### 7. For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 ````sql
@@ -276,10 +269,6 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 | Saturday    | 3            |
 | Sunday      | 1            |
 
-- There are 5 pizzas ordered on Monday and Friday.
-- There are 3 pizzas ordered on Saturday.
-- There is 1 pizza ordered on Sunday.
-
 
 ## B. Runner and Customer Experience
 
@@ -352,10 +341,6 @@ ORDER BY runner_id;
 | 1         | 14           |
 | 2         | 20           |
 | 3         | 10           |
-
-- Runner 1's average time to arrive at the Pizza Runner HQ is 14 minutes.
-- Runner 2's average time to arrive at the Pizza Runner HQ is 20 minutes.
-- Runner 3's average time to arrive at the Pizza Runner HQ is 10 minutes.
 
 ### 3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
 ````sql
@@ -432,12 +417,6 @@ ORDER BY customer_id;
 | 103         | 23.40            |
 | 104         | 10.00            |
 | 105         | 25.00            |
-
-- Customer 101 is on average 20.00 km away from the Pizza Runner HQ.
-- Customer 102 is on average 18.40 km away from the Pizza Runner HQ.
-- Customer 103 is on average 23.40 km away from the Pizza Runner HQ.
-- Customer 104 is on average 10.00 km away from the Pizza Runner HQ.
-- Customer 105 is on average 25.00 km away from the Pizza Runner HQ.
 
 ### 5. What was the difference between the longest and shortest delivery times for all orders?
 ````sql
@@ -582,7 +561,7 @@ LIMIT 1;
 | ------------ | ----------- |
 | Bacon        | 4           |
 
-- Bacon, added 4 times, is the most commonly added extra.
+- Bacon is the most commonly added extra.
 
 ### 3. What was the most common exclusion?
 ````sql
@@ -607,7 +586,7 @@ LIMIT 1;
 | ------------ | ------------- |
 | Cheese       | 4             |
 
-- Cheese, removed 4 times, is the common exclusion.
+- Cheese is the most common excluded topping.
 
 ### 4. Generate an order item for each record in the customers_orders table in the format of one of the following:
 - Meat Lovers
