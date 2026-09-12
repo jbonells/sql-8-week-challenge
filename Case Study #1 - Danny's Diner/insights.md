@@ -1,7 +1,6 @@
 # Questions and Solutions
 
 ### 1. What is the total amount each customer spent at the restaurant?
-
 ````sql
 SELECT
 	s.customer_id,
@@ -26,10 +25,6 @@ ORDER BY s.customer_id ASC;
 | B           | 74          |
 | C           | 36          |
 
-- Customer A spent $76.
-- Customer B spent $74.
-- Customer C spent $36.
-
 ### 2. How many days has each customer visited the restaurant?
 ````sql
 SELECT
@@ -51,10 +46,6 @@ ORDER BY customer_id ASC;
 | A           | 4           |
 | B           | 6           |
 | C           | 2           |
-
-- Customer A has visited the restaurant 4 times.
-- Customer B has visited the restaurant 6 times.
-- Customer C has visited the restaurant 2 times.
 
 ### 3. What was the first item from the menu purchased by each customer?
 ````sql
@@ -317,10 +308,6 @@ ORDER BY customer_id;
 | B           | 940          |
 | C           | 360          |
 
-- Customer A has 860 points.
-- Customer B has 940 points.
-- Customer C has 360 points.
-
 ### 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
 ````sql
 WITH dates AS (
@@ -366,3 +353,71 @@ ORDER BY s.customer_id;
 - Customer A has 1020 points.
 - Customer B has 320 points.
 - Customer C is not a member.
+
+
+# Bonus Questions
+
+### Join All The Things
+````sql
+SELECT
+	s.customer_id,
+    s.order_date,
+    m.product_name,
+    m.price,
+    CASE
+    	WHEN s.order_date >= mem.join_date THEN 'Y'
+        ELSE 'N'
+    END AS member
+FROM sales s
+INNER JOIN menu m
+	ON s.product_id = m.product_id
+LEFT JOIN members mem
+    ON s.customer_id = mem.customer_id
+ORDER BY s.customer_id, s.order_date, m.product_name
+````
+
+#### Steps:
+- Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
+- Use a **LEFT JOIN** on `customer_id` to connect the `sales` and `members` tables.
+- Apply a **CASE** statement to check if the order was made whilst the customer was a member (`Y`) or not (`N`)..
+
+### Rank All The Things
+````sql
+WITH customers AS (
+	SELECT
+		s.customer_id,
+		s.order_date,
+		m.product_name,
+		m.price,
+		CASE
+			WHEN s.order_date >= mem.join_date THEN 'Y'
+			ELSE 'N'
+		END AS member
+	FROM sales s
+	INNER JOIN menu m
+		ON s.product_id = m.product_id
+	LEFT JOIN members mem
+		ON s.customer_id = mem.customer_id
+)
+
+SELECT
+    customer_id,
+    order_date,
+    product_name,
+    price,
+    member,
+    CASE
+        WHEN member = 'N' THEN NULL
+        ELSE RANK() OVER (
+            PARTITION BY customer_id, member
+            ORDER BY order_date ASC
+        )
+    END AS ranking
+FROM customers
+ORDER BY customer_id, order_date, product_name;
+````
+
+#### Steps:
+- Define a Common Table Expression (`customers`) using the exact same query as the previous exercise.
+- Apply the **RANK() OVER()** window function partitioned by `customer_id` and ordered by `order_date` to rank each customer's order since they became a member
+- (Optional) Order the final dataset in ascending sequence by `customer_id`, `order_date`, and `product_name` for structured presentation.

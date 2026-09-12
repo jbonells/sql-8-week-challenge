@@ -188,7 +188,7 @@ ORDER BY s.customer_id;
    Bonus Questions
    ---------------*/
 
--- 1. What is the total amount each customer spent at the restaurant?
+-- Join All The Things
 SELECT
 	s.customer_id,
     s.order_date,
@@ -205,7 +205,7 @@ LEFT JOIN members mem
     ON s.customer_id = mem.customer_id
 ORDER BY s.customer_id, s.order_date, m.product_name
 
--- 2. How many days has each customer visited the restaurant?
+-- Rank All The Things
 WITH customers AS (
 	SELECT
 		s.customer_id,
