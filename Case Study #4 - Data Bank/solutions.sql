@@ -10,10 +10,24 @@ SELECT
 FROM customer_nodes;
 
 -- 2. What is the number of nodes per region?
-
+SELECT
+	r.region_name,
+    COUNT(DISTINCT cn.node_id) AS nodes
+FROM customer_nodes cn
+INNER JOIN regions r
+	ON cn.region_id = r.region_id
+GROUP BY r.region_name
+ORDER BY r.region_name;
 
 -- 3. How many customers are allocated to each region?
-
+SELECT
+	r.region_name,
+    COUNT(DISTINCT cn.customer_id) AS customers
+FROM customer_nodes cn
+INNER JOIN regions r
+	ON cn.region_id = r.region_id
+GROUP BY r.region_name
+ORDER BY r.region_name;
 
 -- 4. How many days on average are customers reallocated to a different node?
 
