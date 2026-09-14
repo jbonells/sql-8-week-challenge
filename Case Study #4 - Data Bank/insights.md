@@ -356,26 +356,26 @@ FROM balance_comparison;
 ### Option 1: data is allocated based off the amount of money at the end of the previous month
 ````sql
 WITH transaction_impacts AS (
-    SELECT 
+    SELECT
         customer_id,
         txn_date AS date,
         EXTRACT(MONTH FROM txn_date) AS month,
         txn_type AS transaction,
-        CASE 
+        CASE
             WHEN txn_type = 'deposit' THEN txn_amount
             ELSE -txn_amount
         END AS amount
     FROM customer_transactions
 ),
 running_balances AS (
-    SELECT 
+    SELECT
         customer_id,
         date,
         month,
         transaction,
         amount,
         SUM(amount) OVER (
-            PARTITION BY customer_id 
+            PARTITION BY customer_id
             ORDER BY date
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS running_balance
@@ -392,36 +392,56 @@ monthly_endpoints AS (
         ) AS end_of_month_balance
     FROM running_balances
 ),
-option_1_allocation AS (
-    -- Retrieve the previous month's balance for Option 1 allocation
-    SELECT 
+end_of_month_allocation AS (
+    SELECT
         customer_id,
         month,
-        end_of_month_balance,
+		end_of_month_balance,
         LAG(end_of_month_balance, 1, 0::BIGINT) OVER (
-            PARTITION BY customer_id 
+            PARTITION BY customer_id
             ORDER BY month
         ) AS data_allocation
     FROM monthly_endpoints
 )
 
-SELECT 
+SELECT
     rb.customer_id,
     rb.date,
     rb.month,
+    rb.transaction,
     rb.amount,
     rb.running_balance,
-    o1.end_of_month_balance,
+    eom.end_of_month_balance,
     MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
     ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
     MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
-    o1.data_allocation AS data_allocation
+    eom.data_allocation AS total_data_required
 FROM running_balances rb
-JOIN option_1_allocation o1 
-	ON rb.customer_id = o1.customer_id 
-	AND rb.month = o1.month
+INNER JOIN end_of_month_allocation eom
+	ON rb.customer_id = eom.customer_id
+	AND rb.month = eom.month
 ORDER BY rb.customer_id, rb.date;
 ````
+#### Steps:
+- Phase 1: Standardise Transaction Impacts
+	- Define a Common Table Expression (`transaction_impacts`) querying the `customer_transactions` table.
+	- Use **EXTRACT()** to pull a numeric month value from the date for chronological grouping.
+	- Apply a **CASE** statement to standardise the financial impact, keeping deposits positive and converting withdrawals/purchases into negative values.
+- Phase 2: Calculate Transaction-Level Balances
+	- Define a Common Table Expression (`running_balances`) querying the `transaction_impacts` CTE.
+	- Use the window function **SUM() OVER ()** partitioned by `customer_id` and order by `date` to aggregate the standardised amounts into a continuous running balance.
+- Phase 3: Isolate Month-End Snapshots
+	- Define a Common Table Expression (`monthly_endpoints`) querying the `running_balances` CTE.
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final running balance recorded for each customer within a given month. 
+- Phase 4: Apply Option 1 Business Logic
+	- Define a Common Table Expression (`end_of_month_allocation`) querying the `monthly_endpoints` CTE.
+	- Use the window function **LAG() OVER ()** partitioned by `customer_id` and order by `month` to look exactly one row back and retrieve the previous month's ending balance to serve as the data allocation limit.
+	- Include a default fallback of 0 within the function to properly handle a customer's very first month of activity.
+- Phase 5: Compile Final Monthly Metrics (Main Query)
+	- Use an **INNER JOIN** on `customer_id` and `month` to connect the `running_balances` and `end_of_month_allocation` CTEs.
+	- Generate the requested summary metrics by applying **MIN()**, **AVG()**, and **MAX()** window functions to the running balances, partitioned by `customer_id` and `month`.
+	- Wrap the average metric in a **ROUND** function to cleanly format the output to two decimal places.
+	- Order the final dataset chronologically by `customer_id` and `date` for structured presentation.
 
 ### Option 2: data is allocated on the average amount of money kept in the account in the previous 30 days
 ````sql

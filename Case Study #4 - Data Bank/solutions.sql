@@ -185,26 +185,26 @@ FROM balance_comparison;
 
 -- Option 1: data is allocated based off the amount of money at the end of the previous month
 WITH transaction_impacts AS (
-    SELECT 
+    SELECT
         customer_id,
         txn_date AS date,
         EXTRACT(MONTH FROM txn_date) AS month,
         txn_type AS transaction,
-        CASE 
+        CASE
             WHEN txn_type = 'deposit' THEN txn_amount
             ELSE -txn_amount
         END AS amount
     FROM customer_transactions
 ),
 running_balances AS (
-    SELECT 
+    SELECT
         customer_id,
         date,
         month,
         transaction,
         amount,
         SUM(amount) OVER (
-            PARTITION BY customer_id 
+            PARTITION BY customer_id
             ORDER BY date
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS running_balance
@@ -221,34 +221,34 @@ monthly_endpoints AS (
         ) AS end_of_month_balance
     FROM running_balances
 ),
-option_1_allocation AS (
-    -- Retrieve the previous month's balance for Option 1 allocation
-    SELECT 
+end_of_month_allocation AS (
+    SELECT
         customer_id,
         month,
-        end_of_month_balance,
+		end_of_month_balance,
         LAG(end_of_month_balance, 1, 0::BIGINT) OVER (
-            PARTITION BY customer_id 
+            PARTITION BY customer_id
             ORDER BY month
         ) AS data_allocation
     FROM monthly_endpoints
 )
 
-SELECT 
+SELECT
     rb.customer_id,
     rb.date,
     rb.month,
+    rb.transaction,
     rb.amount,
     rb.running_balance,
-    o1.end_of_month_balance,
+    eom.end_of_month_balance,
     MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
     ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
     MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
-    o1.data_allocation AS data_allocation
+    eom.data_allocation AS total_data_required
 FROM running_balances rb
-JOIN option_1_allocation o1 
-	ON rb.customer_id = o1.customer_id 
-	AND rb.month = o1.month
+INNER JOIN end_of_month_allocation eom
+	ON rb.customer_id = eom.customer_id
+	AND rb.month = eom.month
 ORDER BY rb.customer_id, rb.date;
 
 -- Option 2: data is allocated on the average amount of money kept in the account in the previous 30 days
