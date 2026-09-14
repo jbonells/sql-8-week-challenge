@@ -415,13 +415,14 @@ SELECT
     MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
     ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
     MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
-    eom.data_allocation AS total_data_required
+    eom.data_allocation
 FROM running_balances rb
 INNER JOIN end_of_month_allocation eom
 	ON rb.customer_id = eom.customer_id
 	AND rb.month = eom.month
 ORDER BY rb.customer_id, rb.date;
 ````
+
 #### Steps:
 - Phase 1: Standardise Transaction Impacts
 	- Define a Common Table Expression (`transaction_impacts`) querying the `customer_transactions` table.
@@ -432,7 +433,7 @@ ORDER BY rb.customer_id, rb.date;
 	- Use the window function **SUM() OVER ()** partitioned by `customer_id` and order by `date` to aggregate the standardised amounts into a continuous running balance.
 - Phase 3: Isolate Month-End Snapshots
 	- Define a Common Table Expression (`monthly_endpoints`) querying the `running_balances` CTE.
-	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final running balance recorded for each customer within a given month. 
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final running balance recorded for each customer within a given month.
 - Phase 4: Apply Option 1 Business Logic
 	- Define a Common Table Expression (`end_of_month_allocation`) querying the `monthly_endpoints` CTE.
 	- Use the window function **LAG() OVER ()** partitioned by `customer_id` and order by `month` to look exactly one row back and retrieve the previous month's ending balance to serve as the data allocation limit.
@@ -445,13 +446,200 @@ ORDER BY rb.customer_id, rb.date;
 
 ### Option 2: data is allocated on the average amount of money kept in the account in the previous 30 days
 ````sql
+WITH transaction_impacts AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+        EXTRACT(MONTH FROM txn_date) AS month,
+        txn_type AS transaction,
+        CASE
+            WHEN txn_type = 'deposit' THEN txn_amount
+            ELSE -txn_amount
+        END AS amount
+    FROM customer_transactions
+),
+running_balances AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+        SUM(amount) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS running_balance
+    FROM transaction_impacts
+),
+rolling_30day_avg AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        AVG(running_balance) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            RANGE BETWEEN INTERVAL '30 days' PRECEDING AND CURRENT ROW
+        ) AS avg_balance_prior_30_days
+    FROM running_balances
+),
+monthly_rolling_avg_endpoints AS (
+    SELECT DISTINCT
+        customer_id,
+        month,
+        LAST_VALUE(avg_balance_prior_30_days) OVER (
+            PARTITION BY customer_id, month
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_avg_balance
+    FROM rolling_30day_avg
+),
+previous_30_days_allocation AS (
+    SELECT
+        customer_id,
+        month,
+        end_of_month_avg_balance,
+        LAG(end_of_month_avg_balance, 1, 0::NUMERIC) OVER (
+            PARTITION BY customer_id
+            ORDER BY month
+        ) AS data_allocation
+    FROM monthly_rolling_avg_endpoints
+)
 
+SELECT
+    rb.customer_id,
+    rb.date,
+    rb.month,
+    rb.transaction,
+    rb.amount,
+    rb.running_balance,
+    ROUND(pd.end_of_month_avg_balance, 2) AS end_of_month_balance,
+    MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
+    ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
+    MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
+	ROUND(pd.data_allocation, 2) AS data_allocation
+FROM running_balances rb
+INNER JOIN previous_30_days_allocation pd
+	ON rb.customer_id = pd.customer_id
+	AND rb.month = pd.month
+ORDER BY rb.customer_id, rb.date;
 ````
+
+#### Steps:
+- Phase 1: Standardise Transaction Impacts
+	- Define a Common Table Expression (`transaction_impacts`) querying the `customer_transactions` table.
+	- Use **EXTRACT()** to pull a numeric month value from the date for chronological grouping.
+	- Apply a **CASE** statement to standardise the financial impact, keeping deposits positive and converting withdrawals/purchases into negative values.
+- Phase 2: Calculate Transaction-Level Balances
+	- Define a Common Table Expression (`running_balances`) querying the `transaction_impacts` CTE.
+	- Use the window function **SUM() OVER ()** partitioned by `customer_id` and order by `date` to aggregate the standardised amounts into a continuous running balance.
+- Phase 3: Generate the Rolling Time Window
+	- Define a Common Table Expression (`rolling_30day_avg`) querying the `running_balances` CTE.
+	- Use the window function **AVG() OVER ()** to the transaction running balances partitioned by `customer_id` and order by `date`.
+	- Use the `RANGE BETWEEN INTERVAL '30 days' PRECEDING AND CURRENT ROW` window frame to evaluate the average of the balances specifically tied to transaction dates occurring within the 30 days leading up to the current row.
+- Phase 4: Isolate Month-End Averages
+	- Define a Common Table Expression (`monthly_rolling_avg_endpoints`) querying the `rolling_30day_avg` CTE.
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final 30-day average calculation recorded for each customer before the month ends.
+- Phase 5: Apply Option 2 Business Logic
+	- Define a Common Table Expression (`previous_30_days_allocation`) querying the `monthly_rolling_avg_endpoints` CTE.
+	- Use the window function **LAG() OVER ()** partitioned by `customer_id` and order by `month` to look exactly one row back and retrieve the previous month's final rolling average to serve as the new month's data allocation.
+	- Include a default fallback of 0 within the function to correctly handle a customer's very first active month.
+- Phase 6: Compile Final Monthly Metrics
+	- Use an **INNER JOIN** on `customer_id` and `month` to connect the `running_balances` and `end_of_month_allocation` CTEs.
+	- Generate the requested summary metrics by applying **MIN()**, **AVG()**, and **MAX()** window functions to the running balances, partitioned by `customer_id` and `month`.
+	- Wrap the average metric, `end_of_month_avg_balance`, and `data_allocation` in a **ROUND** function to cleanly format the output to two decimal places.
+	- Order the final dataset chronologically by `customer_id` and `date` for structured presentation.
 
 ### Option 3: data is updated real-time
 ````sql
+WITH transaction_impacts AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+        EXTRACT(MONTH FROM txn_date) AS month,
+        txn_type AS transaction,
+        CASE
+            WHEN txn_type = 'deposit' THEN txn_amount
+            ELSE -txn_amount
+        END AS amount
+    FROM customer_transactions
+),
+running_balances AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+        SUM(amount) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS running_balance
+    FROM transaction_impacts
+),
+real_time_allocation AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+		running_balance,
+        GREATEST(running_balance, 0) AS data_allocation
+    FROM running_balances
+)
 
+SELECT
+    customer_id,
+    date,
+    month,
+    transaction,
+    amount,
+    running_balance,
+    LAST_VALUE(running_balance) OVER (
+		PARTITION BY customer_id, month 
+		ORDER BY date 
+		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+	) AS end_of_month_balance,
+    MIN(running_balance) OVER(PARTITION BY customer_id, month) AS min_balance,
+    ROUND(AVG(running_balance) OVER(PARTITION BY customer_id, month), 2) AS avg_balance,
+    MAX(running_balance) OVER(PARTITION BY customer_id, month) AS max_balance,
+	data_allocation
+FROM real_time_allocation
+ORDER BY customer_id, date;
 ````
 
+#### Steps:
+- Phase 1: Standardise Transaction Impacts
+	- Define a Common Table Expression (`transaction_impacts`) querying the `customer_transactions` table.
+	- Use **EXTRACT()** to pull a numeric month value from the date for chronological grouping.
+	- Apply a **CASE** statement to standardise the financial impact, keeping deposits positive and converting withdrawals/purchases into negative values.
+- Phase 2: Calculate Transaction-Level Balances
+	- Define a Common Table Expression (`running_balances`) querying the `transaction_impacts` CTE.
+	- Use the window function **SUM() OVER ()** partitioned by `customer_id` and order by `date` to aggregate the standardised amounts into a continuous running balance.
+- Phase 3: Apply Option 3 Business Logic
+	- Define a Common Table Expression (`real_time_allocation`) querying the `running_balances` CTE.
+	- Use the **GREATEST()** function to establish the real-time data allocation, comparing the current running balance against 0 to ensure the provisioned data never falls below zero.
+- Phase 4: Compile Final Monthly Metrics
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final running balance recorded for each customer within a given month.
+	- Generate the requested summary metrics by applying **MIN()**, **AVG()**, and **MAX()** window functions to the running balances, partitioned by `customer_id` and `month`.
+	- Wrap the average metric in a **ROUND** function to cleanly format the output to two decimal places.
+	- Order the final dataset chronologically by `customer_id` and `date` for structured presentation.
 
 ## D. Extra Challenge
+
+### Part 1: Simple Interest (Non-Compounding)
+````sql
+````
+
+#### Steps:
+-
+
+### Part 2: Daily Compounding Interest
+````sql
+````
+
+#### Steps:
+-

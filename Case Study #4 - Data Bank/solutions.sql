@@ -244,7 +244,7 @@ SELECT
     MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
     ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
     MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
-    eom.data_allocation AS total_data_required
+    eom.data_allocation
 FROM running_balances rb
 INNER JOIN end_of_month_allocation eom
 	ON rb.customer_id = eom.customer_id
@@ -252,6 +252,147 @@ INNER JOIN end_of_month_allocation eom
 ORDER BY rb.customer_id, rb.date;
 
 -- Option 2: data is allocated on the average amount of money kept in the account in the previous 30 days
+WITH transaction_impacts AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+        EXTRACT(MONTH FROM txn_date) AS month,
+        txn_type AS transaction,
+        CASE
+            WHEN txn_type = 'deposit' THEN txn_amount
+            ELSE -txn_amount
+        END AS amount
+    FROM customer_transactions
+),
+running_balances AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+        SUM(amount) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS running_balance
+    FROM transaction_impacts
+),
+rolling_30day_avg AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        AVG(running_balance) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            RANGE BETWEEN INTERVAL '30 days' PRECEDING AND CURRENT ROW
+        ) AS avg_balance_prior_30_days
+    FROM running_balances
+),
+monthly_rolling_avg_endpoints AS (
+    SELECT DISTINCT
+        customer_id,
+        month,
+        LAST_VALUE(avg_balance_prior_30_days) OVER (
+            PARTITION BY customer_id, month
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_avg_balance
+    FROM rolling_30day_avg
+),
+previous_30_days_allocation AS (
+    SELECT
+        customer_id,
+        month,
+        end_of_month_avg_balance,
+        LAG(end_of_month_avg_balance, 1, 0::NUMERIC) OVER (
+            PARTITION BY customer_id
+            ORDER BY month
+        ) AS data_allocation
+    FROM monthly_rolling_avg_endpoints
+)
 
+SELECT
+    rb.customer_id,
+    rb.date,
+    rb.month,
+    rb.transaction,
+    rb.amount,
+    rb.running_balance,
+    ROUND(pd.end_of_month_avg_balance, 2) AS end_of_month_balance,
+    MIN(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS min_balance,
+    ROUND(AVG(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month), 2) AS avg_balance,
+    MAX(rb.running_balance) OVER(PARTITION BY rb.customer_id, rb.month) AS max_balance,
+	ROUND(pd.data_allocation, 2) AS data_allocation
+FROM running_balances rb
+INNER JOIN previous_30_days_allocation pd
+	ON rb.customer_id = pd.customer_id
+	AND rb.month = pd.month
+ORDER BY rb.customer_id, rb.date;
 
 -- Option 3: data is updated real-time
+WITH transaction_impacts AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+        EXTRACT(MONTH FROM txn_date) AS month,
+        txn_type AS transaction,
+        CASE
+            WHEN txn_type = 'deposit' THEN txn_amount
+            ELSE -txn_amount
+        END AS amount
+    FROM customer_transactions
+),
+running_balances AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+        SUM(amount) OVER (
+            PARTITION BY customer_id
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS running_balance
+    FROM transaction_impacts
+),
+real_time_allocation AS (
+    SELECT
+        customer_id,
+        date,
+        month,
+        transaction,
+        amount,
+		running_balance,
+        GREATEST(running_balance, 0) AS data_allocation
+    FROM running_balances
+)
+
+SELECT
+    customer_id,
+    date,
+    month,
+    transaction,
+    amount,
+    running_balance,
+    LAST_VALUE(running_balance) OVER (
+		PARTITION BY customer_id, month 
+		ORDER BY date 
+		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+	) AS end_of_month_balance,
+    MIN(running_balance) OVER(PARTITION BY customer_id, month) AS min_balance,
+    ROUND(AVG(running_balance) OVER(PARTITION BY customer_id, month), 2) AS avg_balance,
+    MAX(running_balance) OVER(PARTITION BY customer_id, month) AS max_balance,
+	data_allocation
+FROM real_time_allocation
+ORDER BY customer_id, date;
+
+
+-- D. Extra Challenge
+
+-- Part 1: Simple Interest (Non-Compounding)
+
+
+--Part 2: Daily Compounding Interest
