@@ -1,4 +1,4 @@
-# 🧼 Case Study #5 - Data Mart
+# 🛍 Case Study #5 - Data Mart
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-5">
 		<img src="../assets/case_study_5.png" alt="Case Study #5 - Data Mart" width="500" height="520">
