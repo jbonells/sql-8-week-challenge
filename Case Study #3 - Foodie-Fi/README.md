@@ -1,7 +1,7 @@
 # 🥑 Case Study #3: Foodie-Fi
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-3">
-		<img src="../assets/case_study_2.png" alt="Case Study #3: Foodie-Fi" width="500" height="520">
+		<img src="../assets/case_study_3.png" alt="Case Study #3: Foodie-Fi" width="500" height="520">
 	</a>
 </p>
 
