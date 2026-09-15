@@ -14,10 +14,10 @@ CREATE TABLE data_mart.weekly_sales (
 INSERT INTO data_mart.weekly_sales
 	("week_date", "region", "platform", "segment", "customer_type", "transactions", "sales")
 VALUES
-  ('31/8/20', 'ASIA', 'Retail', 'C3', 'New', '120631', '3656163'),
-  ('31/8/20', 'ASIA', 'Retail', 'F1', 'New', '31574', '996575'),
-  ('31/8/20', 'USA', 'Retail', 'null', 'Guest', '529151', '16509610'),
-  ('31/8/20', 'EUROPE', 'Retail', 'C1', 'New', '4517', '141942'),
+	('31/8/20', 'ASIA', 'Retail', 'C3', 'New', '120631', '3656163'),
+	('31/8/20', 'ASIA', 'Retail', 'F1', 'New', '31574', '996575'),
+	('31/8/20', 'USA', 'Retail', 'null', 'Guest', '529151', '16509610'),
+	('31/8/20', 'EUROPE', 'Retail', 'C1', 'New', '4517', '141942'),
 	('31/8/20', 'AFRICA', 'Retail', 'C2', 'New', '58046', '1758388'),
 	('31/8/20', 'CANADA', 'Shopify', 'F2', 'Existing', '1336', '243878'),
 	('31/8/20', 'AFRICA', 'Shopify', 'F3', 'Existing', '2514', '519502'),
@@ -17131,3 +17131,37 @@ VALUES
 	('26/3/18', 'USA', 'Retail', 'F2', 'New', '25665', '1064172'),
 	('26/3/18', 'EUROPE', 'Retail', 'C4', 'New', '883', '33523'),
 	('26/3/18', 'AFRICA', 'Retail', 'C3', 'Existing', '218516', '12083475');
+
+
+DROP TABLE IF EXISTS clean_weekly_sales;
+CREATE TABLE clean_weekly_sales AS
+WITH formatted_dates AS (
+  	SELECT
+  		*,
+  	TO_DATE(week_date, 'DD/MM/YY') AS parsed_date
+  	FROM weekly_sales
+)
+SELECT
+	parsed_date AS week_date,
+	((EXTRACT(DOY FROM parsed_date)::integer - 1) / 7) + 1 AS week_number,
+	EXTRACT(MONTH FROM parsed_date) AS month_number,
+	EXTRACT(YEAR FROM parsed_date) AS calendar_year,
+	region,
+	platform,
+	COALESCE(NULLIF(segment, 'null'), 'unknown') AS segment,
+	CASE
+		WHEN RIGHT(segment, 1) = '1' THEN 'Young Adults'
+		WHEN RIGHT(segment, 1) = '2' THEN 'Middle Aged'
+		WHEN RIGHT(segment, 1) in ('3','4') THEN 'Retirees'
+		ELSE 'unknown'
+	END AS age_band,
+	CASE
+		WHEN LEFT(segment, 1) = 'C' THEN 'Couples'
+		WHEN LEFT(segment, 1) = 'F' THEN 'Families'
+		ELSE 'unknown'
+	END AS demographic,
+	customer_type,
+	transactions,
+	sales,
+	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
+FROM formatted_dates;

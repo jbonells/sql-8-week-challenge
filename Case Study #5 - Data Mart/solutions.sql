@@ -13,8 +13,38 @@
 -- - Add a new demographic column using the following mapping for the first letter in the segment values
 -- - Ensure all null string values with an "unknown" string value in the original segment column as well as the new age_band and demographic columns
 -- - Generate a new avg_transaction column as the sales value divided by transactions rounded to 2 decimal places for each record
-
-
+DROP TABLE IF EXISTS clean_weekly_sales;
+CREATE TABLE clean_weekly_sales AS
+WITH formatted_dates AS (
+  	SELECT
+  		*,
+  	TO_DATE(week_date, 'DD/MM/YY') AS parsed_date
+  	FROM weekly_sales
+)
+SELECT
+	parsed_date AS week_date,
+	((EXTRACT(DOY FROM parsed_date)::integer - 1) / 7) + 1 AS week_number,
+	EXTRACT(MONTH FROM parsed_date) AS month_number,
+	EXTRACT(YEAR FROM parsed_date) AS calendar_year,
+	region,
+	platform,
+	COALESCE(NULLIF(segment, 'null'), 'unknown') AS segment,
+	CASE
+		WHEN RIGHT(segment, 1) = '1' THEN 'Young Adults'
+		WHEN RIGHT(segment, 1) = '2' THEN 'Middle Aged'
+		WHEN RIGHT(segment, 1) in ('3','4') THEN 'Retirees'
+		ELSE 'unknown'
+	END AS age_band,
+	CASE
+		WHEN LEFT(segment, 1) = 'C' THEN 'Couples'
+		WHEN LEFT(segment, 1) = 'F' THEN 'Families'
+		ELSE 'unknown'
+	END AS demographic,
+	customer_type,
+	transactions,
+	sales,
+	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
+FROM formatted_dates;
 
 
 -- 2. Data Exploration
