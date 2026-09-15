@@ -1,7 +1,7 @@
 # 🏦 Case Study #4 - Data Bank
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-4">
-		<img src="../assets/case_study_2.png" alt="Case Study #4 - Data Bank" width="500" height="520">
+		<img src="../assets/case_study_4.png" alt="Case Study #4 - Data Bank" width="500" height="520">
 	</a>
 </p>
 
