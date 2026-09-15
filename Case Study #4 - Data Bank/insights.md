@@ -628,18 +628,241 @@ ORDER BY customer_id, date;
 	- Wrap the average metric in a **ROUND** function to cleanly format the output to two decimal places.
 	- Order the final dataset chronologically by `customer_id` and `date` for structured presentation.
 
+
 ## D. Extra Challenge
 
 ### Part 1: Simple Interest (Non-Compounding)
 ````sql
+WITH RECURSIVE customer_date_grid AS (
+    SELECT
+		c.customer_id,
+		d.date
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (
+      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
+        FROM customer_transactions
+    ) d
+),
+daily_net AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+		SUM(
+			CASE
+				WHEN txn_type = 'deposit' THEN txn_amount
+				ELSE -txn_amount
+			END
+		) AS net_amount
+    FROM customer_transactions
+	GROUP BY customer_id, date
+),
+daily_grid AS (
+    SELECT
+		g.customer_id,
+		g.date,
+		COALESCE(dn.net_amount, 0) AS net_amount
+    FROM customer_date_grid g
+    LEFT JOIN daily_net dn
+		ON g.customer_id = dn.customer_id
+		AND g.date = dn.date
+),
+daily_balance AS (
+    SELECT
+	customer_id,
+	date,
+	ROUND(net_amount::NUMERIC, 2) AS balance
+    FROM daily_grid
+    WHERE date = (SELECT MIN(date) FROM daily_grid)
+
+    UNION ALL
+
+    SELECT
+		g.customer_id,
+		g.date,
+		ROUND(GREATEST(db.balance, 0) * (1 + 0.06/365.0) + g.net_amount, 2) AS balance
+    FROM daily_grid g
+    INNER JOIN daily_balance db
+		ON g.customer_id = db.customer_id
+		AND g.date = db.date + INTERVAL '1 day'
+),
+monthly_endpoints AS (
+    SELECT DISTINCT
+        customer_id,
+        EXTRACT(MONTH FROM date) AS month,
+        LAST_VALUE(balance) OVER (
+            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_balance
+    FROM daily_balance
+)
+
+SELECT
+    month,
+    TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
+FROM monthly_endpoints
+GROUP BY month
+ORDER BY month;
 ````
 
 #### Steps:
--
+- Phase 1: Generate a Continuous Global Calendar (customer_date_grid)
+	- Define a **RECURSIVE** Common Table Expression (`customer_date_grid`) to generate a Global Calendar.
+	- Use a subquery to find the absolute minimum and maximum transaction dates across the entire database.
+	- Use the **generate_series()** function to create a continuous, uninterrupted chronological timeline.
+    - Apply a **CROSS JOIN** to pair every distinct `customer_id` with every single `date` in the timeline, ensuring there are no gaps in any customer's calendar.
+- Phase 2: Standardise and Condense Daily Impacts
+	- Define a Common Table Expression (`daily_net`) querying the `customer_transactions` table.
+	- Apply a **CASE** statement to standardise the financial impact, keeping deposits positive and converting withdrawals/purchases into negative values.
+	- Use **SUM()** to condense multiple same-day transactions into a single net financial impact per customer per day.
+- Phase 3: Map Impacts to the Continuous Grid
+	- Define a Common Table Expression (`daily_grid`) querying the `customer_date_grid` CTE.
+	- Use a **LEFT JOIN** on `customer_id` and `date` to connect the `customer_date_grid` and `daily_net` CTEs.
+	- Use the **COALESCE()** function to systematically convert days with no transaction activity from NULL into a net impact of 0.
+- Phase 4: Calculate Compound Interest via Recursion
+	- Define a Common Table Expression (`daily_balance`) querying the `daily_grid` CTE.
+	- Define the anchor member of the recursive CTE by querying the absolute first date of the grid to establish the baseline balance.
+	- Construct the recursive member by using an **INNER JOIN** on `customer_id` and `date` to the previous day using `INTERVAL '1 day'`.
+	- Apply the daily compound interest formula `(1 + 0.06/365.0)`.
+	- Use the **GREATEST()** function to ensure interest is only awarded to positive balances, and then add the current day's `net_amount`.
+- Phase 5: Isolate Month-End Snapshots
+	- Define a Common Table Expression (`monthly_endpoints`) querying the `daily_balance` CTE.
+    - Use **EXTRACT()** to pull a numeric month value from the date for chronological grouping.
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final calculated interest-bearing balance for each customer on the last day of each month.
+- Phase 6: Compile Final Monthly Network Requirements
+	- Use **SUM()** to add the month-end balances across all customers, grouped by month.
+	- Apply a **GREATEST()** constraint to act as a floor, ensuring that overdrawn accounts contribute 0 to the total data requirement rather than subtracting from it.
+	- (Optional) Wrap the final aggregated metric in a **TO_CHAR()** function with a format mask (`'FM999,999,999.99'`) to output clean, comma-separated values rounded to two decimal places.
+
+#### Answer:
+| month | data_required |
+| ------| ------------- |
+| 1     | 257,192.29    |
+| 2     | 340,813.04    |
+| 3     | 400,654.18    |
+| 4     | 429,606.56    |
+
 
 ### Part 2: Daily Compounding Interest
 ````sql
+WITH customer_date_grid AS (
+    SELECT
+		c.customer_id,
+		d.date
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (
+      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
+        FROM customer_transactions
+    ) d
+),
+daily_net AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+		SUM(
+			CASE
+				WHEN txn_type = 'deposit' THEN txn_amount
+				ELSE -txn_amount
+			END
+		) AS net_amount
+    FROM customer_transactions
+	GROUP BY customer_id, date
+),
+daily_grid AS (
+    SELECT
+		g.customer_id,
+		g.date,
+		COALESCE(dn.net_amount, 0) AS net_amount
+    FROM customer_date_grid g
+    LEFT JOIN daily_net dn
+		ON g.customer_id = dn.customer_id
+		AND g.date = dn.date
+),
+daily_running_balance AS (
+    SELECT
+        customer_id,
+		date,
+        SUM(net_amount) OVER (
+            PARTITION BY customer_id ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS raw_balance
+    FROM daily_grid
+),
+daily_simple_interest AS (
+    SELECT
+        customer_id,
+		date,
+		raw_balance,
+        GREATEST(raw_balance, 0) * (0.06/365.0) AS daily_interest
+    FROM daily_running_balance
+),
+daily_balance_simple AS (
+    SELECT
+        customer_id,
+		date,
+        raw_balance + SUM(daily_interest) OVER (
+            PARTITION BY customer_id ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS balance_with_simple_interest
+    FROM daily_simple_interest
+),
+monthly_endpoints AS (
+    SELECT DISTINCT
+        EXTRACT(MONTH FROM date) AS month,
+        LAST_VALUE(balance_with_simple_interest) OVER (
+            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_balance
+    FROM daily_balance_simple
+)
+
+SELECT
+    month,
+	TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
+FROM monthly_endpoints
+GROUP BY month
+ORDER BY month;
 ````
 
 #### Steps:
--
+- Phase 1: Generate a Continuous Global Calendar (customer_date_grid)
+	- Define a Common Table Expression (`customer_date_grid`) to generate a Global Calendar.
+	- Use a subquery to find the absolute minimum and maximum transaction dates across the entire database.
+	- Use the **generate_series()** function to create a continuous, uninterrupted chronological timeline.
+    - Apply a **CROSS JOIN** to pair every distinct `customer_id` with every single `date` in the timeline, ensuring there are no gaps in any customer's calendar.
+- Phase 2: Standardise and Condense Daily Impacts
+	- Define a Common Table Expression (`daily_net`) querying the `customer_transactions` table.
+	- Apply a **CASE** statement to standardise the financial impact, keeping deposits positive and converting withdrawals/purchases into negative values.
+	- Use **SUM()** to condense multiple same-day transactions into a single net financial impact per customer per day.
+- Phase 3: Map Impacts to the Continuous Grid
+	- Define a Common Table Expression (`daily_grid`) querying the `customer_date_grid` CTE.
+	- Use a **LEFT JOIN** on `customer_id` and `date` to connect the `customer_date_grid` and `daily_net` CTEs.
+	- Use the **COALESCE()** function to systematically convert days with no transaction activity from NULL into a net impact of 0.
+- Phase 4: Calculate Daily Running Balances
+	- Define a Common Table Expression (`daily_running_balance`) querying the `daily_grid` CTE.
+	- Use the **SUM() OVER()** window function partitioned by `customer_id` and order by `date` to calculate a continuous `raw_balance` based purely on transaction activity.
+- Phase 5: Calculate Daily Simple Interest
+	- Define a Common Table Expression (`daily_simple_interest`) querying the `daily_running_balance` CTE.
+	- Apply the daily interest rate `(0.06/365.0)` directly to the `raw_balance`.
+	- Use the **GREATEST()** function to ensure interest is only awarded to positive balances, ignoring any overdrawn days.
+- Phase 6: Apply Accumulated Interest
+	- Define a Common Table Expression (`daily_balance_simple`) querying the `daily_simple_interest` CTE.
+    - Use the **SUM() OVER()** window function partitioned by `customer_id` and order by `date` to maintain a running total of the daily interest accrued over the life of the account.
+	- Add this running total of accrued interest back to the `raw_balance` to finalise the balance_with_simple_interest.
+- Phase 7: Isolate Month-End Snapshots
+	- Define a Common Table Expression (`monthly_endpoints`) querying the `daily_balance_simple` CTE.
+    - Use **EXTRACT()** to define the grouping for the reporting periods.
+	- Use the window function **LAST_VALUE() OVER ()** partitioned by `customer_id` and `month`, and order by `date` to capture the final calculated interest-bearing balance for each customer on the last day of each month.
+- Phase 8: Compile Final Monthly Network Requirements
+	- Use **SUM()** to add the month-end balances across all customers, grouped by month.
+	- Apply a **GREATEST()** constraint to act as a floor, ensuring that overdrawn accounts contribute 0 to the total data requirement rather than subtracting from it.
+	- (Optional) Wrap the final aggregated metric in a **TO_CHAR()** function with a format mask (`'FM999,999,999.99'`) to output clean, comma-separated values rounded to two decimal places.
+
+#### Answer:
+| month | data_required |
+| ------| ------------- |
+| 1     | 236,184.43    |
+| 2     | 263,089.56    |
+| 3     | 263,535.67    |
+| 4     | 268,442.79    |

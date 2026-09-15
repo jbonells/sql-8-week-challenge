@@ -393,6 +393,153 @@ ORDER BY customer_id, date;
 -- D. Extra Challenge
 
 -- Part 1: Simple Interest (Non-Compounding)
+WITH RECURSIVE customer_date_grid AS (
+    SELECT
+		c.customer_id,
+		d.date
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (
+      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
+        FROM customer_transactions
+    ) d
+),
+daily_net AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+		SUM(
+			CASE
+				WHEN txn_type = 'deposit' THEN txn_amount
+				ELSE -txn_amount
+			END
+		) AS net_amount
+    FROM customer_transactions
+	GROUP BY customer_id, date
+),
+daily_grid AS (
+    SELECT
+		g.customer_id,
+		g.date,
+		COALESCE(dn.net_amount, 0) AS net_amount
+    FROM customer_date_grid g
+    LEFT JOIN daily_net dn
+		ON g.customer_id = dn.customer_id
+		AND g.date = dn.date
+),
+daily_balance AS (
+    SELECT
+	customer_id,
+	date,
+	ROUND(net_amount::NUMERIC, 2) AS balance
+    FROM daily_grid
+    WHERE date = (SELECT MIN(date) FROM daily_grid)
 
+    UNION ALL
+
+    SELECT
+		g.customer_id,
+		g.date,
+		ROUND(GREATEST(db.balance, 0) * (1 + 0.06/365.0) + g.net_amount, 2) AS balance
+    FROM daily_grid g
+    INNER JOIN daily_balance db
+		ON g.customer_id = db.customer_id
+		AND g.date = db.date + INTERVAL '1 day'
+),
+monthly_endpoints AS (
+    SELECT DISTINCT
+        customer_id,
+        EXTRACT(MONTH FROM date) AS month,
+        LAST_VALUE(balance) OVER (
+            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_balance
+    FROM daily_balance
+)
+
+SELECT
+    month,
+    TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
+FROM monthly_endpoints
+GROUP BY month
+ORDER BY month;
 
 --Part 2: Daily Compounding Interest
+WITH customer_date_grid AS (
+    SELECT
+		c.customer_id,
+		d.date
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (
+      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
+        FROM customer_transactions
+    ) d
+),
+daily_net AS (
+    SELECT
+        customer_id,
+        txn_date AS date,
+		SUM(
+			CASE
+				WHEN txn_type = 'deposit' THEN txn_amount
+				ELSE -txn_amount
+			END
+		) AS net_amount
+    FROM customer_transactions
+	GROUP BY customer_id, date
+),
+daily_grid AS (
+    SELECT
+		g.customer_id,
+		g.date,
+		COALESCE(dn.net_amount, 0) AS net_amount
+    FROM customer_date_grid g
+    LEFT JOIN daily_net dn
+		ON g.customer_id = dn.customer_id
+		AND g.date = dn.date
+),
+daily_running_balance AS (
+    SELECT
+        customer_id,
+		date,
+        SUM(net_amount) OVER (
+            PARTITION BY customer_id ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS raw_balance
+    FROM daily_grid
+),
+daily_simple_interest AS (
+    SELECT
+        customer_id,
+		date,
+		raw_balance,
+        GREATEST(raw_balance, 0) * (0.06/365.0) AS daily_interest
+    FROM daily_running_balance
+),
+daily_balance_simple AS (
+    SELECT
+        customer_id,
+		date,
+        raw_balance + SUM(daily_interest) OVER (
+            PARTITION BY customer_id ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS balance_with_simple_interest
+    FROM daily_simple_interest
+),
+monthly_endpoints AS (
+    SELECT DISTINCT
+        EXTRACT(MONTH FROM date) AS month,
+        LAST_VALUE(balance_with_simple_interest) OVER (
+            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
+            ORDER BY date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+        ) AS end_of_month_balance
+    FROM daily_balance_simple
+)
+
+SELECT
+    month,
+	TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
+FROM monthly_endpoints
+GROUP BY month
+ORDER BY month;
