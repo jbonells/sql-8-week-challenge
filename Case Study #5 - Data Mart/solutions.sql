@@ -46,6 +46,8 @@ SELECT
 	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
 FROM formatted_dates;
 
+-- NOTE: I have added the new table to schema.sql to run the solution easily.
+
 
 -- 2. Data Exploration
 

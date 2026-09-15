@@ -65,6 +65,8 @@ FROM formatted_dates;
 - Apply the **ROUND()** function, casting `sales` to numeric, to compute the `avg_transaction` metric.
 - Use **DROP TABLE IF EXISTS** and **CREATE TABLE AS** to to create the `clean_weekly_sales` table with the results of the query.
 
+**NOTE:** I have added the new table to `schema.sql` to run the solution easily.
+
 
 ## 2. Data Exploration
 
