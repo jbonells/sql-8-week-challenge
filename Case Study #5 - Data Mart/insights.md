@@ -1,4 +1,4 @@
-## 1. Data Cleansing Steps
+## A. Data Cleansing Steps
 
 ### In a single query, perform the following operations and generate a new table in the data_mart schema named clean_weekly_sales:
 - Convert the week_date to a DATE format
@@ -68,7 +68,7 @@ FROM formatted_dates;
 **NOTE:** I have added the new table to `schema.sql` to run the solution easily.
 
 
-## 2. Data Exploration
+## B. Data Exploration
 
 ### 1. What day of the week is used for each week_date value?
 ````sql
@@ -299,10 +299,379 @@ ORDER BY SUM(sales) DESC;
 
 ### 9. Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
 ````sql
-
+SELECT
+	calendar_year AS year,
+    platform,
+	ROUND(AVG(avg_transaction), 2) AS avg_transactio_column,
+    ROUND(SUM(sales)::NUMERIC / SUM(transactions), 2) AS average_transaction,
+    ROUND(AVG(avg_transaction) - SUM(sales)::NUMERIC / SUM(transactions), 2) AS difference
+FROM clean_weekly_sales
+GROUP BY year, platform
+ORDER BY year, platform;
 ````
 
 #### Steps:
-- 
+- Use the **AVG()** aggregate function on the pre-calculated `avg_transaction` column.
+- Use the **SUM()** aggregate function for both `sales` and `transactions`, casting sales to calculate the weighted average transaction size.
+- Compute the mathematical difference between the simple average of averages and the weighted average to highlight the variance.
+- Apply the **ROUND()** function to format all metric outputs to two decimal places.
 
 #### Answer:
+| year | platform | avg_transactio_column | average_transaction | difference |
+| ---- | -------- | --------------------- | ------------------- | ---------- |
+| 2018 | Retail   | 42.91                 | 36.56               | 6.34       |
+| 2018 | Shopify  | 188.28                | 192.48              | -4.20      |
+| 2019 | Retail   | 41.97                 | 36.83               | 5.13       |
+| 2019 | Shopify  | 177.56                | 183.36              | -5.80      |
+| 2020 | Retail   | 40.64                 | 36.56               | 4.08       |
+| 2020 | Shopify  | 174.87                | 179.03              | -4.16      |
+
+- The `avg_transaction` column is computed per-row, so a plain **AVG()** over it gives an unweighted "average of averages".
+- The correct approach is a weighted average (`average_transaction`), which properly weights each row by its actual transaction volume.
+
+
+## C. Before & After Analysis
+This technique is usually used when we inspect an important event and want to inspect the impact before and after a certain point in time.
+
+Taking the `week_date` value of `2020-06-15` as the baseline week where the Data Mart sustainable packaging changes came into effect.
+
+We would include all `week_date` values `for 2020-06-15` as the start of the period after the change and the previous `week_date` values would be before.
+
+Before we start, we could determine the `week_nember` corresponding to `2020-06-15` to simplify our filters during the analysis.
+````sql
+SELECT
+	DISTINCT week_number
+FROM clean_weekly_sales
+WHERE week_date = '2020-06-15'
+	AND calendar_year = 2020;
+````
+
+| week_number |
+| ----------- |
+| 24          |
+
+- The week_number is 24.
+- Note that we did not need to filter by `calendar_year = 2020` but I added it here for clarity as it will be used later on.
+
+### 1. What is the total sales for the 4 weeks before and after 2020-06-15? What is the growth or reduction rate in actual values and percentage of sales?
+````sql
+WITH period AS (
+	SELECT
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 20 AND 28
+		AND calendar_year = 2020
+  	GROUP BY week_number
+),
+split_period AS (
+	SELECT
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 20 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 28) AS sales_after
+	FROM period
+)
+
+SELECT
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM split_period;
+````
+
+#### Steps:
+- Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table.
+- Use the **SUM** aggregate function to calculate the total sales.
+- Apply a filter condition in the **WHERE** clause (`week_number BETWEEN 20 AND 28` and `calendar_year = 2020`) to isolate `sales` for calendar year 2020 across weeks 20 to 28.
+- Define a Common Table Expression (`split_period`) querying the `period` CTE.
+- Use the **SUM** aggregate function to calculate the total sales.
+- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct period (weeks 20–23 and weeks 25–28).
+- Calculate the absolute value difference (`sales_change`) between the after and before sales figures.
+- Use the **ROUND()** function combined with percentage math to compute the growth or reduction rate (`percentage_rate`) rounded to two decimal places.
+
+#### Answer:
+| sales_before | sales_after | sales_change | percentage_rate |
+| ------------ | ----------- | ------------ | --------------- |
+| 2345878357   | 2334905223  | -10973134    | -0.47           |
+
+- Following the change, total sales decreased by $10,973,134 over the four-week period, representing a 0.47% drop in overall sales volume.
+
+### 2. What about the entire 12 weeks before and after?
+````sql
+WITH period AS (
+	SELECT
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY week_number
+),
+split_period AS (
+	SELECT
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM period
+)
+
+SELECT
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM split_period;
+````
+
+#### Steps:
+- Same as previous exercise changing the `week_number` range to `week_number BETWEEN 12 AND 36`.
+
+#### Answer:
+| sales_before | sales_after | sales_change | percentage_rate |
+| ------------ | ----------- | ------------ | --------------- |
+| 7126273147   | 6403922405  | -722350742   | -10.14          |
+
+- Following the change, total sales decreased by $722,350,742 over the twelve-week period, representing a 10.14% drop in overall sales volume.
+
+### 3. How do the sale metrics for these 2 periods before and after compare with the previous years in 2018 and 2019?
+````sql
+WITH period AS (
+	SELECT
+		calendar_year AS year,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+  	GROUP BY calendar_year, week_number
+),
+split_period AS (
+	SELECT
+		year,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 20 AND 23) AS four_week_sales_before,
+        SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 28) AS four_week_sales_after,
+        SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS twelve_week_sales_before,
+        SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS twelve_week_sales_after
+	FROM period
+	GROUP BY year
+)
+
+SELECT
+	year,
+	four_week_sales_before,
+	four_week_sales_after,
+    (four_week_sales_after - four_week_sales_before) AS four_week_sales_change,
+    ROUND(100 * (four_week_sales_after - four_week_sales_before) / four_week_sales_before, 2) AS four_week_percentage_rate,
+	twelve_week_sales_before,
+	twelve_week_sales_after,
+    (twelve_week_sales_after - twelve_week_sales_before) AS twelve_week_sales_change,
+    ROUND(100 * (twelve_week_sales_after - twelve_week_sales_before)::NUMERIC / twelve_week_sales_before, 2) AS twelve_week_percentage_rate
+FROM split_period
+ORDER BY year;
+````
+
+#### Steps:
+- Same as previous exercise but including the four-week period and `calendar_year`.
+
+#### Answer:
+| year | four_week_sales_before | four_week_sales_after | four_week_sales_change | four_week_percentage_rate | twelve_week_sales_before | twelve_week_sales_after | twelve_week_sales_change | twelve_week_percentage_rate |
+| ---- | ---------------------- | --------------------- | ---------------------- | ------------------------- | ------------------------ | ----------------------- | ------------------------ | --------------------------- |
+| 2018 | 2119669585             | 2129242914            | 9573329                | 0.45                      | 5863302538               | 6500818510              | 637515972                | 10.87                       |
+| 2019 | 2249989796             | 2264499542            | 14509746               | 0.64                      | 6883386397               | 6303557285              | -579829112               | -8.42                       |
+| 2020 | 2345878357             | 2334905223            | -10973134              | -0.47                     | 7126273147               | 6403922405              | -722350742               | -10.14                      |
+
+
+## D. Bonus Question
+Which areas of the business have the highest negative impact in sales metrics performance in 2020 for the 12 week before and after period?
+- region
+- platform
+- age_band
+- demographic
+- customer_type
+
+Do you have any further recommendations for Danny’s team at Data Mart or any interesting insights based off this analysis?
+````sql
+WITH region_period AS (
+	SELECT
+		region,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY region, week_number
+),
+region_split AS (
+	SELECT
+		region,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM region_period
+	GROUP BY region
+),
+platform_period AS (
+	SELECT
+		platform,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY platform, week_number
+),
+platform_split AS (
+	SELECT
+		platform,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM platform_period
+	GROUP BY platform
+),
+age_band_period AS (
+	SELECT
+		age_band,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY age_band, week_number
+),
+age_band_split AS (
+	SELECT
+		age_band,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM age_band_period
+	GROUP BY age_band
+),
+demographic_period AS (
+	SELECT
+		demographic,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY demographic, week_number
+),
+demographic_split AS (
+	SELECT
+		demographic,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM demographic_period
+	GROUP BY demographic
+),
+customer_type_period AS (
+	SELECT
+		customer_type,
+		week_number,
+  		SUM(sales) AS total_sales
+	FROM clean_weekly_sales
+	WHERE week_number BETWEEN 12 AND 36
+		AND calendar_year = 2020
+  	GROUP BY customer_type, week_number
+),
+customer_type_split AS (
+	SELECT
+		customer_type,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
+		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
+	FROM customer_type_period
+	GROUP BY customer_type
+)
+
+SELECT
+	'region' AS area,
+	region AS value,
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM region_split
+
+UNION ALL
+
+SELECT
+	'platform' AS area,
+	platform AS value,
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM platform_split
+
+UNION ALL
+
+SELECT
+	'age_band' AS area,
+	age_band AS value,
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM age_band_split
+
+UNION ALL
+
+SELECT
+	'demographic' AS area,
+	demographic AS value,
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM demographic_split
+
+UNION ALL
+
+SELECT
+	'customer_type' AS area,
+	customer_type AS value,
+	sales_before,
+	sales_after,
+    (sales_after - sales_before) AS sales_change,
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
+FROM customer_type_split
+ORDER BY area, percentage_rate;
+````
+
+#### Steps:
+- Define a series of period Common Table Expressions (`region_period`, `platform_period`, `age_band_period`, `demographic_period`, and `customer_type_period`) querying the `clean_weekly_sales` table.
+- Use the **SUM** aggregate function to calculate total sales grouped by each respective area and `week_number`.
+- Apply a filter condition in the **WHERE** clause (`week_number BETWEEN 20 AND 28` and `calendar_year = 2020`) to isolate the analysis window.
+- Define corresponding split Common Table Expressions (`region_split`, `platform_split`, `age_band_split`, `demographic_split`, and `customer_type_split`) to aggregate the period data.
+- Use the **SUM** aggregate function to calculate the total sales.
+- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct period (weeks 20–23 and weeks 25–28).
+- Combine all area splits in the final query using **UNION ALL**, mapping standardised `area` and `value` metadata columns.
+- Calculate the absolute value difference (`sales_change`) between the after and before sales figures.
+- Use the **ROUND()** function combined with percentage math to compute the growth or reduction rate (`percentage_rate`) rounded to two decimal places.
+- (Optional) Use **ORDER BY** on `area` and `percentage_rate` to organise the final multi-dimensional comparison report.
+
+#### Answer:
+| area          | value         | sales_before | sales_after | sales_change | percentage_rate |
+| ------------- | ------------- | ------------ | ----------- | ------------ | --------------- |
+| age_band      | unknown       | 2764354464   | 2455309572  | -309044892   | -11.18          |
+| age_band      | Middle Aged   | 1164847640   | 1047640798  | -117206842   | -10.06          |
+| age_band      | Retirees      | 2395264515   | 2171707896  | -223556619   | -9.33           |
+| age_band      | Young Adults  | 801806528    | 729264139   | -72542389    | -9.05           |
+| customer_type | Guest         | 2573436301   | 2292350880  | -281085421   | -10.92          |
+| customer_type | Existing      | 3690116427   | 3308618627  | -381497800   | -10.34          |
+| customer_type | New           | 862720419    | 802952898   | -59767521    | -6.93           |
+| demographic   | unknown       | 2764354464   | 2455309572  | -309044892   | -11.18          |
+| demographic   | Families      | 2328329040   | 2096951469  | -231377571   | -9.94           |
+| demographic   | Couples       | 2033589643   | 1851661364  | -181928279   | -8.95           |
+| platform      | Retail        | 6906861113   | 6188030612  | -718830501   | -10.41          |
+| platform      | Shopify       | 219412034    | 215891793   | -3520241     | -1.60           |
+| region        | ASIA          | 1637244466   | 1454048362  | -183196104   | -11.19          |
+| region        | OCEANIA       | 2354116790   | 2096183557  | -257933233   | -10.96          |
+| region        | SOUTH AMERICA | 213036207    | 191162573   | -21873634    | -10.27          |
+| region        | CANADA        | 426438454    | 383469208   | -42969246    | -10.08          |
+| region        | USA           | 677013558    | 611780628   | -65232930    | -9.64           |
+| region        | AFRICA        | 1709537105   | 1562467704  | -147069401   | -8.60           |
+| region        | EUROPE        | 108886567    | 104810373   | -4076194     | -3.74           |
+
+- Every single value across every dimension declined — there's no positive outlier anywhere in this table, so the 12-week period genuinely saw a broad-based drop:
+	- Age Band / Demographic: unknown is the single worst performer in both (-11.18%).
+	- Customer Type: Guest (-10.92%) declined more than Existing (-10.34%) or New (-6.93%).
+	- Platform: Retail (-10.41%) fell far more than Shopify (-1.60%).
+	- Region: ASIA (-11.19%) and OCEANIA (-10.96%).
