@@ -1,4 +1,4 @@
-# 🍜 8 Week SQL Challenge (PostgreSQL)
+# 8 Week SQL Challenge (PostgreSQL)
 This repository contains my solutions and case study write-ups for [Danny Ma's 8 Week SQL Challenge](https://8weeksqlchallenge.com/). I am using PostgreSQL to solve complex, real-world business problems ranging from transactional data cleaning to advanced customer analytics and subscription metrics.
 
 ## 📚 Table of Contents
@@ -13,7 +13,7 @@ This repository contains my solutions and case study write-ups for [Danny Ma's 8
 
 ## 🛠️ Technical Environment
 * **Database:** PostgreSQL
-* **Tools:** DBeaver / pgAdmin / VS Code
+* **Tools:** DBeaver / Notepad++
 * **Key SQL Concepts Applied:**
   * Common Table Expressions (CTEs)
   * Window Functions (`RANK()`, `DENSE_RANK()`, `ROW_NUMBER()`, `LEAD()`, `LAG()`)
