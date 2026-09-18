@@ -172,6 +172,7 @@ WHERE s.order_date <= d.end_month
 GROUP BY s.customer_id
 ORDER BY s.customer_id;
 
+
 /* ---------------
    Bonus Questions
    ---------------*/
