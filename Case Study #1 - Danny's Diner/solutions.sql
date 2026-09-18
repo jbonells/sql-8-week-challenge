@@ -24,7 +24,6 @@ ORDER BY customer_id ASC;
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
-		s.order_date,
 		m.product_name,
 		DENSE_RANK() OVER (
 			PARTITION BY s.customer_id
@@ -79,7 +78,6 @@ WHERE rank = 1;
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
-		s.order_date,
 		m.product_name,
 		DENSE_RANK() OVER (
 			PARTITION BY s.customer_id
@@ -103,7 +101,6 @@ WHERE rank = 1;
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
-		s.order_date,
 		m.product_name,
 		DENSE_RANK() OVER (
 			PARTITION BY s.customer_id
@@ -138,41 +135,32 @@ GROUP BY s.customer_id
 ORDER BY s.customer_id ASC;
 
 -- 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
-WITH points AS (
-	SELECT
-		s.customer_id,
-		CASE
-			WHEN s.product_id = 1 THEN m.price * 20
-			ELSE m.price * 10
-		END AS item_points
-	FROM sales s
-	INNER JOIN menu m
-		ON s.product_id = m.product_id
-)
-
 SELECT
-	customer_id,
-    SUM(item_points) AS total_points
-FROM points
-GROUP BY customer_id
-ORDER BY customer_id;
+    s.customer_id,
+    SUM(m.price * 10 * CASE WHEN m.product_name = 'sushi' THEN 2 ELSE 1 END) AS points
+FROM sales s
+JOIN menu m
+	ON s.product_id = m.product_id
+GROUP BY s.customer_id
+ORDER BY s.customer_id;
 
 -- 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
 WITH dates AS (
     SELECT 
         customer_id, 
         join_date, 
-        join_date + INTERVAL '6 days' AS end_week, 
+        (join_date + INTERVAL '6 days')::DATE AS end_week, 
         (DATE_TRUNC('month', join_date) + INTERVAL '1 month - 1 day')::DATE AS end_month
     FROM members
 )
 SELECT
     s.customer_id,
     SUM(
+		m.price * 10 *
         CASE
-            WHEN s.order_date BETWEEN d.join_date AND d.end_week THEN m.price * 20
-            WHEN m.product_name = 'sushi' THEN m.price * 20
-            ELSE m.price * 10
+            WHEN s.order_date BETWEEN d.join_date AND d.end_week THEN 2
+            WHEN m.product_name = 'sushi' THEN 2
+            ELSE 1
         END
     ) AS total_points
 FROM sales s
@@ -180,7 +168,7 @@ INNER JOIN menu m
     ON s.product_id = m.product_id
 INNER JOIN dates d
     ON s.customer_id = d.customer_id
-    AND s.order_date BETWEEN d.join_date AND d.end_month
+WHERE s.order_date <= d.end_month
 GROUP BY s.customer_id
 ORDER BY s.customer_id;
 
