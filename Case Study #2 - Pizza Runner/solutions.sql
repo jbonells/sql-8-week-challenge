@@ -53,66 +53,57 @@ GROUP BY runner_id;
 
 -- 4. How many of each type of pizza was delivered?
 SELECT
-	co.pizza_id,
+	pn.pizza_name,
     COUNT(co.pizza_id) AS pizzas_delivered
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL
-GROUP BY co.pizza_id
-ORDER BY co.pizza_id;
+	ON co.order_id = ro.order_id
+INNER JOIN pizza_names pn
+	ON co.pizza_id = pn.pizza_id
+WHERE ro.cancellation IS NULL
+GROUP BY pn.pizza_name
+ORDER BY pn.pizza_name;
 
 -- 5. How many Vegetarian and Meatlovers were ordered by each customer?
 SELECT
-	co.customer_id,
-    pn.pizza_name,
-    COUNT(co.pizza_id) AS pizzas_ordered
-FROM t_customer_orders co
-INNER JOIN pizza_names pn
-	ON co.pizza_id = pn.pizza_id
-GROUP BY co.customer_id, pn.pizza_name
-ORDER BY co.customer_id;
+	customer_id,
+    SUM(CASE WHEN pizza_id = 1 THEN 1 ELSE 0 END) AS meat_lovers,
+    SUM(CASE WHEN pizza_id = 2 THEN 1 ELSE 0 END) AS vegetarian
+FROM t_customer_orders
+GROUP BY customer_id
+ORDER BY customer_id;
 
 -- 6. What was the maximum number of pizzas delivered in a single order?
-WITH orders AS (
-	SELECT
-		co.order_id,
-		COUNT(co.pizza_id) AS pizzas_delivered
-	FROM t_customer_orders co
-	INNER JOIN t_runner_orders ro
-		ON co.order_id = ro.order_id AND ro.cancellation IS NULL
-	GROUP BY co.order_id
-)
-
 SELECT
-	MAX(pizzas_delivered) AS max_pizzas_delivered
-FROM orders
+	co.order_id,
+	COUNT(co.pizza_id) AS pizzas_delivered
+FROM t_customer_orders co
+INNER JOIN t_runner_orders ro
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL
+GROUP BY co.order_id
+ORDER BY pizzas_delivered DESC
+LIMIT 1;
 
 -- 7. For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 SELECT
 	co.customer_id,
-    SUM(
-    	CASE WHEN co.exclusions IS NOT NULL OR co.extras IS NOT NULL THEN 1
-    	ELSE 0
-    END) AS change,
-    SUM(
-    	CASE WHEN co.exclusions IS NULL AND co.extras IS NULL THEN 1
-    	ELSE 0
-    END) AS no_change
+    SUM(CASE WHEN co.exclusions IS NOT NULL OR co.extras IS NOT NULL THEN 1 ELSE 0 END) AS change,
+    SUM(CASE WHEN co.exclusions IS NULL AND co.extras IS NULL THEN 1 ELSE 0 END) AS no_change
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL
 GROUP BY co.customer_id
 ORDER BY co.customer_id;
 
 -- 8. How many pizzas were delivered that had both exclusions and extras?
 SELECT
-    SUM(
-    	CASE WHEN co.exclusions IS NOT NULL AND co.extras IS NOT NULL THEN 1
-    	ELSE 0
-    END) AS changed_pizza
+    SUM(CASE WHEN co.exclusions IS NOT NULL AND co.extras IS NOT NULL THEN 1 ELSE 0 END) AS changed_pizza
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL;
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL;
 
 -- 9. What was the total volume of pizzas ordered for each hour of the day?
 SELECT
@@ -123,9 +114,9 @@ GROUP BY order_hour
 ORDER BY order_hour;
 
 -- 10. What was the volume of orders for each day of the week?
-SELECT 
+SELECT
     TO_CHAR(order_time, 'FMDay') AS day_of_week,
-    COUNT(order_id) AS total_pizzas
+    COUNT(DISTINCT order_id) AS total_orders
 FROM t_customer_orders
 GROUP BY TO_CHAR(order_time, 'FMDay'), EXTRACT(ISODOW FROM order_time)
 ORDER BY EXTRACT(ISODOW FROM order_time);
@@ -151,13 +142,13 @@ WITH order_time AS (
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+  	WHERE ro.cancellation IS NULL
   	GROUP BY co.order_id, ro.runner_id, co.order_time, ro.pickup_time
 )
 
 SELECT
 	runner_id,
-    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60))::INTEGER AS average_time
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60)::NUMERIC, 2) AS average_time
 FROM order_time
 GROUP BY runner_id
 ORDER BY runner_id;
@@ -172,13 +163,14 @@ WITH order_time AS (
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+  	WHERE ro.cancellation IS NULL
   	GROUP BY co.order_id, co.order_time, ro.pickup_time
 )
 
 SELECT
-	num_pizzas,
-    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60))::INTEGER AS average_time
+    num_pizzas,
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time))::NUMERIC / 60), 2) AS average_time,
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time))::NUMERIC / 60) / num_pizzas, 2) AS average_time_per_pizza
 FROM order_time
 GROUP BY num_pizzas
 ORDER BY num_pizzas;
@@ -187,12 +179,11 @@ ORDER BY num_pizzas;
 WITH order_distances AS (
     SELECT DISTINCT
         co.customer_id,
-        ro.order_id,
         ro.distance
     FROM t_customer_orders co
     INNER JOIN t_runner_orders ro
         ON co.order_id = ro.order_id
-        AND ro.distance IS NOT NULL
+    WHERE ro.distance IS NOT NULL
 )
 
 SELECT 
@@ -203,8 +194,10 @@ GROUP BY customer_id
 ORDER BY customer_id;
 
 -- 5. What was the difference between the longest and shortest delivery times for all orders?
-SELECT 
-    MAX(duration) - MIN(duration) AS delivery_time_difference
+SELECT
+    MAX(duration) AS longest_delivery,
+	MIN(duration) AS shortest_delivery,
+	MAX(duration) - MIN(duration) AS difference
 FROM t_runner_orders
 WHERE duration IS NOT NULL;
 

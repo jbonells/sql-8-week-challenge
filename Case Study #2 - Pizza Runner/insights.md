@@ -5,8 +5,8 @@ This case study ask us to investigate the data, mentioning that we may want to d
 ### Table: customer_orders
 
 Looking at the `customer_orders` table, we can see that there are missing and null values in the `exclusions` and `extras` columns. So we will create a temporary table that:
-- Remove empty strings ('') or null strings ('null') with **NULL** in the `exclusions` column.
-- Remove empty strings ('') or null strings ('null') with **NULL** in the `extras` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` in the `exclusions` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` in the `extras` column.
 
 ````sql
 CREATE TEMP TABLE t_customer_orders AS
@@ -23,13 +23,13 @@ FROM customer_orders;
 ### Table: runner_orders
 
 Our course of action to clean the `runner_orders` table will be create a temporary table that:
-- Remove empty strings ('') or null strings ('null') with **NULL** in the `pickup_time` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` in the `pickup_time` column.
 - Cast the `pickup_time` column as **TIMESTAMP**.
-- Remove empty strings ('') or null strings ('null') with **NULL** and any trailing string such as 'km' in the `distance` column.
+- RReplace empty strings ('') or null strings ('null') with `NULL` and any trailing string such as 'km' in the `distance` column.
 - Cast the `distance` column as **NUMERIC**.
-- Remove empty strings ('') or null strings ('null') with **NULL** and any trailing string such as "minutes", "minute", or "mins" in the `duration` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` and any trailing string such as "minutes", "minute", or "mins" in the `duration` column.
 - Cast the `duration` column as **INTEGER**.
-- Remove empty strings ('') or null strings ('null') with **NULL** in the `cancellation` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` in the `cancellation` column.
 
 ````sql
 CREATE TEMP TABLE t_runner_orders AS
@@ -65,8 +65,6 @@ FROM t_customer_orders;
 | ----------------- |
 | 14                |
 
-- There were 14 pizzas ordered.
-
 ### 2. How many unique customer orders were made?
 ````sql
 SELECT
@@ -83,8 +81,6 @@ FROM t_customer_orders;
 | ------------------ |
 | 10                 |
 
-- There were 10 unique customer orders.
-
 ### 3. How many successful orders were delivered by each runner?
 ````sql
 SELECT
@@ -97,7 +93,7 @@ GROUP BY runner_id;
 
 #### Steps:
 - Use the **COUNT** aggregate function to tally the total number of successful orders for each runner group.
-- Apply a **WHERE** clause to filter out cancelled orders. There are several options to do this step correctly.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders. There are several options to do this step correctly.
 - Group the filtered records by `runner_id` to aggregate delivery metrics per individual runner.
 
 #### Answer:
@@ -110,120 +106,103 @@ GROUP BY runner_id;
 ### 4. How many of each type of pizza was delivered?
 ````sql
 SELECT
-	co.pizza_id,
+	pn.pizza_name,
     COUNT(co.pizza_id) AS pizzas_delivered
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL
-GROUP BY co.pizza_id
-ORDER BY co.pizza_id;
+	ON co.order_id = ro.order_id
+INNER JOIN pizza_names pn
+	ON co.pizza_id = pn.pizza_id
+WHERE ro.cancellation IS NULL
+GROUP BY pn.pizza_name
+ORDER BY pn.pizza_name;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
+- Use an **INNER JOIN** on `pizza_id` to connect the `t_customer_orders` and `pizza_names` tables.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Use the **COUNT** aggregate function to tally the total volume delivered for each pizza type.
 - Group the filtered records by `pizza_id` to aggregate delivery metrics per individual pizza type.
 - (Optional) Order the final dataset in ascending sequence by `pizza_id` for structured presentation.
 
 #### Answer:
-| pizza_id | pizzas_delivered |
-| -------- | ---------------- |
-| 1        | 9                |
-| 2        | 3                |
-
-- Pizza 1 was ordered three times more than pizza 2.
+| pizza_name | pizzas_delivered |
+| ---------- | ---------------- |
+| Meatlovers | 9                |
+| Vegetarian | 3                |
 
 ### 5. How many Vegetarian and Meatlovers were ordered by each customer?
 ````sql
 SELECT
-	co.customer_id,
-    pn.pizza_name,
-    COUNT(co.pizza_id) AS pizzas_ordered
-FROM t_customer_orders co
-INNER JOIN pizza_names pn
-	ON co.pizza_id = pn.pizza_id
-GROUP BY co.customer_id, pn.pizza_name
-ORDER BY co.customer_id;
+	customer_id,
+    SUM(CASE WHEN pizza_id = 1 THEN 1 ELSE 0 END) AS meat_lovers,
+    SUM(CASE WHEN pizza_id = 2 THEN 1 ELSE 0 END) AS vegetarian
+FROM t_customer_orders
+GROUP BY customer_id
+ORDER BY customer_id;
 ````
 
 #### Steps:
-- Use an **INNER JOIN** on `pizza_id` to connect the `t_customer_orders` and `pizza_names` tables.
-- Use the **COUNT** aggregate function to tally the total volume of pizzas ordered.
-- Group the records by `customer_id` and `pizza_name` to break down order totals per individual customer and pizza type.
+- Apply a **CASE** statement inside the **SUM()** function to evaluate the total volume of Meatlovers pizzas ordered.
+- Apply a **CASE** statement inside the **SUM()** function to evaluate the total volume of Vegetarian pizzas ordered.
+- Group the records by `customer_id` to break down order totals per individual customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
-| customer_id | pizzas_name | pizzas_ordered |
-| ----------- | ----------- | -------------- |
-| 101         | Meatlovers  | 2              |
-| 101         | Vegetarian  | 1              |
-| 102         | Meatlovers  | 2              |
-| 102         | Vegetarian  | 1              |
-| 103         | Meatlovers  | 3              |
-| 103         | Vegetarian  | 1              |
-| 104         | Meatlovers  | 3              |
-| 105         | Vegetarian  | 1              |
-
-- Customer 101 ordered 2 Meatlovers pizzas and 1 Vegetarian pizza.
-- Customer 102 ordered 2 Meatlovers pizzas and 2 Vegetarian pizzas.
-- Customer 103 ordered 3 Meatlovers pizzas and 1 Vegetarian pizza.
-- Customer 104 ordered 1 Meatlovers pizza.
-- Customer 105 ordered 1 Vegetarian pizza.
+| customer_id | meat_lovers | vegetarian |
+| ----------- | ----------- | ---------- |
+| 101         | 2           | 1          |
+| 102         | 2           | 1          |
+| 103         | 3           | 1          |
+| 104         | 3           | 0          |
+| 105         | 0           | 1          |
 
 ### 6. What was the maximum number of pizzas delivered in a single order?
 ````sql
-WITH orders AS (
-	SELECT
-		co.order_id,
-		COUNT(co.pizza_id) AS pizzas_delivered
-	FROM t_customer_orders co
-	INNER JOIN t_runner_orders ro
-		ON co.order_id = ro.order_id AND ro.cancellation IS NULL
-	GROUP BY co.order_id
-)
-
 SELECT
-	MAX(pizzas_delivered) AS max_pizzas_delivered
-FROM orders
+	co.order_id,
+	COUNT(co.pizza_id) AS pizzas_delivered
+FROM t_customer_orders co
+INNER JOIN t_runner_orders ro
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL
+GROUP BY co.order_id
+ORDER BY pizzas_delivered DESC
+LIMIT 1;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`orders`) that joins the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
+- Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Use the **COUNT** aggregate function to tally the total volume of pizzas delivered per order.
-- Use the **MAX** aggregate function to extract the single highest pizza count from any single order.
+- Order the final dataset in descending sequence by `pizzas_delivered` to keep the highest number on top.
+- Use **LIMIT** to show the maximum number of pizzas delivered in a single order.
 
 #### Answer:
-| max_pizzas_delivered |
-| -------------------- |
-| 3                    |
+| order_id | pizzas_delivered |
+| -------- | ---------------- |
+| 4        | 3                |
 
 ### 7. For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 ````sql
 SELECT
 	co.customer_id,
-    SUM(
-    	CASE WHEN co.exclusions IS NOT NULL OR co.extras IS NOT NULL THEN 1
-    	ELSE 0
-    END) AS change,
-    SUM(
-    	CASE WHEN co.exclusions IS NULL AND co.extras IS NULL THEN 1
-    	ELSE 0
-    END) AS no_change
+    SUM(CASE WHEN co.exclusions IS NOT NULL OR co.extras IS NOT NULL THEN 1 ELSE 0 END) AS change,
+    SUM(CASE WHEN co.exclusions IS NULL AND co.extras IS NULL THEN 1 ELSE 0 END) AS no_change
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL
 GROUP BY co.customer_id
 ORDER BY co.customer_id;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Use the **SUM** aggregate function counting those pizzas with at least one modification and assigning the alias `change`.
 - Use the **SUM** aggregate function counting those pizzas that had no modifications whatsoever assigning the alias `no_change`.
-- Group the filtered records by `customer_id` to break down metrics per individual customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -235,35 +214,25 @@ ORDER BY co.customer_id;
 | 104         | 2      | 1         |
 | 105         | 1      | 0         |
 
-- Customer 101 ordered 2 pizzas without any change.
-- Customer 102 ordered 3 pizzas without any change.
-- Customer 103 ordered 3 pizzas with at least 1 change.
-- Customer 104 ordered 2 pizzas with at least 1 change and 1 pizza without any change.
-- Customer 105 ordered 1 pizza with at least 1 change.
-
 ### 8. How many pizzas were delivered that had both exclusions and extras?
 ````sql
 SELECT
-    SUM(
-    	CASE WHEN co.exclusions IS NOT NULL AND co.extras IS NOT NULL THEN 1
-    	ELSE 0
-    END) AS changed_pizza
+    SUM(CASE WHEN co.exclusions IS NOT NULL AND co.extras IS NOT NULL THEN 1 ELSE 0 END) AS changed_pizza
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id AND ro.cancellation IS NULL;
+	ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Use the **SUM** aggregate function counting those pizzas with at least one exclusion and at least one extra.
 
 #### Answer:
 | changed_pizza |
 | ------------- |
 | 1             |
-
-- Only 1 pizza delivered had both extra and exclusion topping.
 
 ### 9. What was the total volume of pizzas ordered for each hour of the day?
 ````sql
@@ -290,14 +259,11 @@ ORDER BY order_hour;
 | 21         | 3            |
 | 23         | 3            |
 
-- Highest volume of pizza ordered is at 13 (1:00 pm), 18 (6:00 pm), 21 (9:00 pm) and 23 (11:00 pm).
-- Lowest volume of pizza ordered is at 11 (11:00 am) and 19 (7:00 pm).
-
 ### 10. What was the volume of orders for each day of the week?
 ````sql
-SELECT 
+SELECT
     TO_CHAR(order_time, 'FMDay') AS day_of_week,
-    COUNT(order_id) AS total_pizzas
+    COUNT(DISTINCT order_id) AS total_orders
 FROM t_customer_orders
 GROUP BY TO_CHAR(order_time, 'FMDay'), EXTRACT(ISODOW FROM order_time)
 ORDER BY EXTRACT(ISODOW FROM order_time);
@@ -305,16 +271,15 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 
 #### Steps:
 - Use the **TO_CHAR** function to extract and format `order_time` into the full name of the day of the week.
-- Apply the **COUNT** aggregate function to tally the total volume of pizzas ordered.
-- Group the records by `order_time` to break down metrics for each day of the week.
+- Apply the **COUNT DISTINCT** aggregate function to tally the total volume of orders, not pizzas.
 - (Optional) Order the final dataset in ascending sequence by `order_time` using the **EXTRACT(ISODOW FROM)** function for structured presentation.
 
 #### Answer:
-| day_of_week | total_pizzas |
+| day_of_week | total_orders |
 | ----------- | ------------ |
-| Monday      | 5            |
+| Monday      | 2            |
 | Friday      | 5            |
-| Saturday    | 3            |
+| Saturday    | 2            |
 | Sunday      | 1            |
 
 
@@ -333,10 +298,10 @@ ORDER BY registration_week;
 #### Steps:
 - Calculate the time elapsed from the anchor date ('2021-01-01') by subtracting **TIMESTAMP** from the `registration_date`.
 - Extract the total number of elapsed days using the **DATE_PART('day', ...)** function.
-- Divide the elapsed days by 7 and apply FLOOR() with integer casting.
+- Divide the elapsed days by 7 and apply **FLOOR()** with integer casting.
 - Add 1 to create sequential 1-week period buckets starting cleanly at 1, assigning the alias `registration_week`.
 - Apply the **COUNT** aggregate function to tally the total volume of runner signups within each weekly period.
-- Group and sort the final output by `registration_week` in ascending sequence for clean chronological reporting.
+- (Optional) Order the final output by `registration_week` in ascending sequence for clean chronological reporting.
 
 #### Note:
 - Using `EXTRACT(WEEK FROM registration_date) AS registration_week` will also work but it starts with Week 53.
@@ -350,9 +315,6 @@ ORDER BY registration_week;
 | 2                 | 1             |
 | 3                 | 1             |
 
-- On Week 1 of Jan 2021, 2 new runners signed up.
-- On Week 2 and 3 of Jan 2021, 1 new runner signed up per week.
-
 ### 2. What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
 ````sql
 WITH order_time AS (
@@ -364,13 +326,13 @@ WITH order_time AS (
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+  	WHERE ro.cancellation IS NULL
   	GROUP BY co.order_id, ro.runner_id, co.order_time, ro.pickup_time
 )
 
 SELECT
 	runner_id,
-    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60))::INTEGER AS average_time
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60)::NUMERIC, 2) AS average_time
 FROM order_time
 GROUP BY runner_id
 ORDER BY runner_id;
@@ -378,17 +340,18 @@ ORDER BY runner_id;
 
 #### Steps:
 - Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the joined records by `order_id`, `runner_id`, `order_time`, and `pickup_time` to ensure a unique grain per order transaction.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
-- Apply the **AVG** aggregate function to the calculated minutes, wrap it in **ROUND** to produce a clean whole-number metric.
+- Apply the **AVG** aggregate function to the calculated minutes and cast the resulting floating-point value to **NUMERIC** to avoid errors.
+- Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
 
 #### Answer:
-| runner_id | average_time |
-| --------- | ------------ |
-| 1         | 14           |
-| 2         | 20           |
-| 3         | 10           |
+| num_pizzas | average_time |
+| ---------- | ------------ |
+| 1          | 14.33        |
+| 2          | 20.01        |
+| 3          | 10.47        |
 
 ### 3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
 ````sql
@@ -401,45 +364,46 @@ WITH order_time AS (
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+  	WHERE ro.cancellation IS NULL
   	GROUP BY co.order_id, co.order_time, ro.pickup_time
 )
 
 SELECT
-	num_pizzas,
-    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time)) / 60))::INTEGER AS average_time
+    num_pizzas,
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time))::NUMERIC / 60), 2) AS average_time,
+    ROUND(AVG(EXTRACT(EPOCH FROM (pickup_time - order_time))::NUMERIC / 60) / num_pizzas, 2) AS average_time_per_pizza
 FROM order_time
 GROUP BY num_pizzas
 ORDER BY num_pizzas;
 ````
 
 #### Steps:
-- Same as the previous exercise with two differences:
+- Same as the previous exercise with some differences:
 	- Remove `runner_id` from the **SELECT** statement.
 	- Apply the **COUNT** aggregate function to tally the total volume of pizzas for each order.
+	- Divide the `average_time` by `num_pizzas` to get the specific average time for each pizza so it is easier to compare orders.
 
 #### Answer:
-| num_pizzas | average_time |
-| ---------- | ------------ |
-| 1          | 12           |
-| 2          | 18           |
-| 3          | 29           |
+| num_pizzas | average_time | average_time_per_pizza |
+| ---------- | ------------ | ---------------------- |
+| 1          | 12.36        | 12.36                  |
+| 2          | 18.38        | 9.19                   |
+| 3          | 29.28        | 9.76                   |
 
-- On average, an order with a single pizza takes 12 minutes to prepare.
-- On average, an order with two pizzas takes 18 minutes to prepare with an average of exactly 9 minutes per pizza. This seems to be the most efficient order.
-- On average, an order with three pizzas takes 29 minutes to prepare with an average of almost 10 minutes per pizza.
+- On average, an order with a single pizza takes 12.36 minutes per pizza to prepare.
+- On average, an order with two pizzas takes 18.38 minutes to prepare with an average of 9.19 minutes per pizza. This seems to be the most efficient order.
+- On average, an order with three pizzas takes 29.28 minutes to prepare with an average of 9.76 minutes per pizza.
 
 ### 4. What was the average distance travelled for each customer?
 ````sql
 WITH order_distances AS (
     SELECT DISTINCT
         co.customer_id,
-        ro.order_id,
         ro.distance
     FROM t_customer_orders co
     INNER JOIN t_runner_orders ro
         ON co.order_id = ro.order_id
-        AND ro.distance IS NOT NULL
+    WHERE ro.distance IS NOT NULL
 )
 
 SELECT 
@@ -453,7 +417,7 @@ ORDER BY customer_id;
 #### Steps:
 - Define a Common Table Expression (`order_distances`) that joins the `t_customer_orders` and `t_runner_orders` tables.
 - Apply **DISTINCT** to collapse duplicate rows caused by joining the pizza-level detail table to the order-level runner table, ensuring each trip distance is represented uniquely per customer.
-- Apply a filter condition within the join (`distance IS NOT NULL`) to exclude cancelled orders.
+- Apply a **WHERE** clause (`distance IS NOT NULL`) to exclude cancelled orders.
 - Apply the **AVG** aggregate function to the `distance` column to compute the average for each customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
@@ -468,23 +432,24 @@ ORDER BY customer_id;
 
 ### 5. What was the difference between the longest and shortest delivery times for all orders?
 ````sql
-SELECT 
-    MAX(duration) - MIN(duration) AS delivery_time_difference
+SELECT
+    MAX(duration) AS longest_delivery,
+	MIN(duration) AS shortest_delivery,
+	MAX(duration) - MIN(duration) AS difference
 FROM t_runner_orders
 WHERE duration IS NOT NULL;
 ````
 
 #### Steps:
-- Apply the **MAX** aggregate function to find the longest delivery time and the **MIN** function to find the shortest delivery time.
-- Subtract the shortest delivery time from the longest delivery time directly within the **SELECT** clause.
-- (Optional) Apply a **WHERE** clause filtering out null records by retaining only rows where duration `IS NOT NULL`.
+- Apply the **MAX** aggregate function to find the longest delivery time.
+- Apply the **MIN** function to find the shortest delivery time.
+- Subtract the shortest delivery time from the longest delivery time directly..
+- (Optional) Apply a **WHERE** clause (`duration IS NOT NULL`) to exclude cancelled orders.
 
 #### Answer:
-| delivery_time_difference |
-| ------------------------ |
-| 30                       |
-
-- The difference between the longest (40 minutes) and the shortest (10 minutes) delivery time for all orders is 30 minutes.
+| longest_delivery | shortest_delivery | difference |
+| ---------------- | ----------------- | ---------- |
+| 40               | 10                | 30         |
 
 ### 6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
 ````sql
