@@ -178,6 +178,7 @@ ORDER BY num_pizzas;
 -- 4. What was the average distance travelled for each customer?
 WITH order_distances AS (
     SELECT DISTINCT
+        co.order_id,
         co.customer_id,
         ro.distance
     FROM t_customer_orders co
@@ -202,21 +203,19 @@ FROM t_runner_orders
 WHERE duration IS NOT NULL;
 
 -- 6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
-SELECT 
+SELECT
     runner_id,
     order_id,
+    pickup_time,
     ROUND((distance / duration) * 60, 2) AS speed_kmh
 FROM t_runner_orders
 WHERE duration IS NOT NULL AND distance IS NOT NULL
-ORDER BY runner_id, order_id;
+ORDER BY runner_id, pickup_time;
 
 -- 7. What is the successful delivery percentage for each runner?
 SELECT 
     runner_id,
-    ROUND(100.0 * SUM(CASE 
-        WHEN cancellation IS NULL THEN 1 
-        ELSE 0 
-    END) / COUNT(*), 2) AS successful_delivery_percentage
+    ROUND(100.0 * COUNT(*) FILTER (WHERE cancellation IS NULL) / COUNT(*), 2) AS successful_delivery_percentage
 FROM t_runner_orders
 GROUP BY runner_id
 ORDER BY runner_id;
@@ -226,43 +225,58 @@ ORDER BY runner_id;
 
 -- 1. What are the standard ingredients for each pizza?
 WITH toppings AS (
-	SELECT 
-		pizza_id,
-		REGEXP_SPLIT_TO_TABLE(toppings, '[,\s]+')::INTEGER AS topping_id
-	FROM pizza_recipes
+    SELECT
+        pn.pizza_name,
+        topping_id_split::INTEGER AS topping_id
+    FROM pizza_recipes pr
+    INNER JOIN pizza_names pn
+        ON pr.pizza_id = pn.pizza_id
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS t(topping_id_split)
 )
 
 SELECT
-	t.pizza_id,
-	STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS standard_ingredients
+	t.pizza_name,
+	STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS standard_ingredients
 FROM toppings t
 INNER JOIN pizza_toppings pt
 	ON t.topping_id = pt.topping_id
-GROUP BY t.pizza_id
-ORDER BY t.pizza_id;
+GROUP BY t.pizza_name
+ORDER BY t.pizza_name;
 
 -- 2. What was the most commonly added extra?
-SELECT 
-	pt.topping_name,
-	COUNT(*) AS times_added
-FROM t_customer_orders,
-	LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
+WITH extras AS (
+    SELECT
+        pizza_id,
+  		REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS topping_id
+    FROM t_customer_orders
+    WHERE extras IS NOT NULL
+)
+
+SELECT
+    pt.topping_name,
+    COUNT(*) AS times_added
+FROM extras e
 INNER JOIN pizza_toppings pt
-	ON topping::INTEGER = pt.topping_id
-WHERE extras IS NOT NULL 
+    ON e.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY times_added DESC
 LIMIT 1;
 
 -- 3. What was the most common exclusion?
-SELECT 
-	pt.topping_name,
-	COUNT(*) AS times_removed
-FROM t_customer_orders,
-	LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
+WITH exclusions AS (
+    SELECT
+        pizza_id,
+  		REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS topping_id
+    FROM t_customer_orders
+    WHERE exclusions IS NOT NULL
+)
+
+SELECT
+    pt.topping_name,
+    COUNT(*) AS times_removed
+FROM exclusions e
 INNER JOIN pizza_toppings pt
-	ON topping::INTEGER = pt.topping_id
-WHERE exclusions IS NOT NULL 
+    ON e.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY times_removed DESC
 LIMIT 1;
@@ -272,9 +286,9 @@ LIMIT 1;
 --    - Meat Lovers - Exclude Beef
 --    - Meat Lovers - Extra Bacon
 --    - Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
-WITH numbered_orders AS (
+WITH ordered_pizzas AS (
     SELECT 
-        ROW_NUMBER() OVER () AS record_id,
+        ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
 		order_id,
         pizza_id,
         exclusions,
@@ -283,189 +297,153 @@ WITH numbered_orders AS (
 ),
 exclusions AS (
     SELECT 
-        record_id,
-        STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS exclusions
-    FROM numbered_orders,
-		LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
+        op.record_id,
+        STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS exclusions
+    FROM ordered_pizzas op
+	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
     INNER JOIN pizza_toppings pt
 		ON topping::INTEGER = pt.topping_id
-    WHERE exclusions IS NOT NULL
-    GROUP BY record_id
+    WHERE op.exclusions IS NOT NULL
+    GROUP BY op.record_id
 ),
 additions AS (
     SELECT 
-        record_id,
-        STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS additions
-    FROM numbered_orders,
-		LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
+        op.record_id,
+        STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS additions
+    FROM ordered_pizzas op
+	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
     INNER JOIN pizza_toppings pt
         ON topping::INTEGER = pt.topping_id
-    WHERE extras IS NOT NULL
-    GROUP BY record_id
+    WHERE op.extras IS NOT NULL
+    GROUP BY op.record_id
 )
 
 SELECT
-    no.order_id,
-    pn.pizza_name || COALESCE(' - Exclude ' || e.exclusions, '') || COALESCE(' - Extra ' || a.additions, '') AS order_item
-FROM numbered_orders no
+    op.order_id,
+    pn.pizza_name
+		|| COALESCE(' - Exclude ' || e.exclusions, '')
+		|| COALESCE(' - Extra ' || a.additions, '') AS pizza_ordered
+FROM ordered_pizzas op
 INNER JOIN pizza_names pn
-	ON no.pizza_id = pn.pizza_id
+	ON op.pizza_id = pn.pizza_id
 LEFT JOIN exclusions e
-	ON no.record_id = e.record_id
+	ON op.record_id = e.record_id
 LEFT JOIN additions a
-	ON no.record_id = a.record_id
-ORDER BY no.record_id;
+	ON op.record_id = a.record_id
+ORDER BY op.record_id;
 
 -- 5. Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 --    For example: "Meat Lovers: 2xBacon, Beef, ..., Salami"
-WITH numbered_orders AS (
-    SELECT
-        ROW_NUMBER() OVER () AS record_id,
-        order_id,
-        pizza_id,
-        exclusions,
-        extras
+WITH ordered_pizzas AS (
+    SELECT 
+		ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
+		order_id,
+		pizza_id,
+		extras,
+		exclusions		
     FROM t_customer_orders
 ),
-base_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    JOIN pizza_recipes pr
-		ON no.pizza_id = pr.pizza_id
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS topping
-),
-extra_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.extras, '[,\s]+') AS topping
-    WHERE no.extras IS NOT NULL
-),
-combined_ingredients AS (
-    -- Base ingredients
-    SELECT
-		record_id,
-		topping_id
-	FROM base_ingredients
-	
-    UNION ALL
-	
-    -- Extra ingredients added to the order
-    SELECT
-		record_id,
-		topping_id
-	FROM extra_ingredients
-    
-    EXCEPT ALL
-    
-    -- Excluded ingredients removed from the order
-    SELECT 
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.exclusions, '[,\s]+') AS topping
-    WHERE no.exclusions IS NOT NULL
+ingredient_list AS (
+	(
+		SELECT
+			op.record_id,
+			base_id::INTEGER AS topping_id
+		FROM ordered_pizzas op
+		INNER JOIN pizza_recipes pr
+			ON op.pizza_id = pr.pizza_id
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS base_id
+		UNION ALL
+		SELECT
+			op.record_id,
+			extra_id::INTEGER AS topping_id
+		FROM ordered_pizzas op
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(op.extras, '[,\s]+') AS extra_id
+		WHERE op.extras IS NOT NULL
+	)
+	EXCEPT ALL
+	SELECT
+		op.record_id,
+  		excluded_id::INTEGER AS topping_id
+	FROM ordered_pizzas op
+  	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(op.exclusions, '[,\s]+') AS excluded_id
+	WHERE op.exclusions IS NOT NULL	
 ),
 ingredient_counts AS (
     SELECT
-        ci.record_id,
-        ci.topping_id,
-        COUNT(*) AS count
-    FROM combined_ingredients ci
-    GROUP BY ci.record_id, ci.topping_id
-),
-final_order_ingredients AS (
-    SELECT
-        ic.record_id,
-        STRING_AGG(
-            CASE 
-                WHEN ic.count > 1 THEN ic.count || 'x' || pt.topping_name
-                ELSE pt.topping_name
-            END, 
-            ', ' 
-            ORDER BY LOWER(pt.topping_name)
-        ) AS ingredient_list
-    FROM ingredient_counts ic
-    JOIN pizza_toppings pt
-		ON ic.topping_id = pt.topping_id
-    GROUP BY ic.record_id
+		il.record_id,
+		pt.topping_name,
+		COUNT(*) AS count
+    FROM ingredient_list il
+	INNER JOIN pizza_toppings pt
+		ON il.topping_id = pt.topping_id
+    GROUP BY il.record_id, pt.topping_name
 )
 
 SELECT
-	no.order_id,
-    pn.pizza_name || ': ' || foi.ingredient_list AS order_item
-FROM numbered_orders no
-JOIN pizza_names pn
-	ON no.pizza_id = pn.pizza_id
-JOIN final_order_ingredients foi
-	ON no.record_id = foi.record_id
-ORDER BY no.record_id;
+	op.order_id,
+	pn.pizza_name || ': ' || STRING_AGG(
+		CASE
+			WHEN ic.count > 1 THEN ic.count || 'x' || ic.topping_name
+			ELSE ic.topping_name
+		END,
+		', '
+		ORDER BY LOWER(ic.topping_name)
+	) AS ingredient_list
+FROM ingredient_counts ic
+INNER JOIN ordered_pizzas op
+	ON ic.record_id = op.record_id
+INNER JOIN pizza_names pn
+	ON op.pizza_id = pn.pizza_id
+GROUP BY op.record_id, op.order_id, pn.pizza_name
+ORDER BY op.record_id;
 
 -- 6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
-WITH numbered_orders AS (
+WITH delivered_pizzas AS (
     SELECT
-        ROW_NUMBER() OVER () AS record_id,
+        ROW_NUMBER() OVER (ORDER BY co.order_id) AS record_id,
         co.order_id,
         co.pizza_id,
-  		co.extras,
-        co.exclusions
+        co.exclusions,
+        co.extras
     FROM t_customer_orders co
-  	INNER JOIN t_runner_orders ro
-		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+    INNER JOIN t_runner_orders ro
+        ON co.order_id = ro.order_id
+    WHERE ro.cancellation IS NULL
 ),
-base_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    JOIN pizza_recipes pr
-		ON no.pizza_id = pr.pizza_id
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS topping
-),
-extra_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.extras, '[,\s]+') AS topping
-    WHERE no.extras IS NOT NULL
-),
-combined_ingredients AS (
-    -- Base ingredients
-    SELECT
-		record_id,
-		topping_id
-	FROM base_ingredients
-	
-    UNION ALL
-	
-    -- Extra ingredients added to the order
-    SELECT
-		record_id,
-		topping_id
-	FROM extra_ingredients
-    
+ingredient_list AS (
+    (
+		SELECT
+			dp.record_id,
+			base_id::INTEGER AS topping_id
+		FROM delivered_pizzas dp
+		INNER JOIN pizza_recipes pr
+			ON dp.pizza_id = pr.pizza_id
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS base_id
+		
+		UNION ALL
+		
+		SELECT
+			dp.record_id,
+			extra_id::INTEGER AS topping_id
+		FROM delivered_pizzas dp
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(dp.extras, '[,\s]+') AS extra_id
+		WHERE dp.extras IS NOT NULL
+    )
     EXCEPT ALL
-    
-    -- Excluded ingredients removed from the order
-    SELECT 
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.exclusions, '[,\s]+') AS topping
-    WHERE no.exclusions IS NOT NULL
+    SELECT
+		dp.record_id,
+		excluded_id::INTEGER AS topping_id
+    FROM delivered_pizzas dp
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(dp.exclusions, '[,\s]+') AS excluded_id
+    WHERE dp.exclusions IS NOT NULL
 )
 
 SELECT
     pt.topping_name,
     COUNT(*) AS quantity
-FROM combined_ingredients ci
+FROM ingredient_list il
 INNER JOIN pizza_toppings pt
-	ON ci.topping_id = pt.topping_id
+	ON il.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY quantity DESC;
 

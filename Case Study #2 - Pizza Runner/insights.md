@@ -1,6 +1,6 @@
 ## Data Cleaning & Transformation
 
-This case study ask us to investigate the data, mentioning that we may want to do something with some of those `null` values and data types in the `customer_orders` and `runner_orders` tables!
+This case study asks us to investigate the data, mentioning that we may want to do something with some of those `null` values and data types in the `customer_orders` and `runner_orders` tables!
 
 ### Table: customer_orders
 
@@ -25,7 +25,7 @@ FROM customer_orders;
 Our course of action to clean the `runner_orders` table will be create a temporary table that:
 - Replace empty strings ('') or null strings ('null') with `NULL` in the `pickup_time` column.
 - Cast the `pickup_time` column as **TIMESTAMP**.
-- RReplace empty strings ('') or null strings ('null') with `NULL` and any trailing string such as 'km' in the `distance` column.
+- Replace empty strings ('') or null strings ('null') with `NULL` and any trailing string such as 'km' in the `distance` column.
 - Cast the `distance` column as **NUMERIC**.
 - Replace empty strings ('') or null strings ('null') with `NULL` and any trailing string such as "minutes", "minute", or "mins" in the `duration` column.
 - Cast the `duration` column as **INTEGER**.
@@ -92,9 +92,9 @@ GROUP BY runner_id;
 ````
 
 #### Steps:
-- Use the **COUNT** aggregate function to tally the total number of successful orders for each runner group.
-- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders. There are several options to do this step correctly.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the filtered records by `runner_id` to aggregate delivery metrics per individual runner.
+- Use the **COUNT** aggregate function to tally the total number of successful orders delivered per runner.
 
 #### Answer:
 | runner_id | successful_orders |
@@ -122,9 +122,9 @@ ORDER BY pn.pizza_name;
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Use an **INNER JOIN** on `pizza_id` to connect the `t_customer_orders` and `pizza_names` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
-- Use the **COUNT** aggregate function to tally the total volume delivered for each pizza type.
-- Group the filtered records by `pizza_id` to aggregate delivery metrics per individual pizza type.
-- (Optional) Order the final dataset in ascending sequence by `pizza_id` for structured presentation.
+- Group the filtered records by `pizza_name` to aggregate delivery metrics per individual pizza type.
+- Use the **COUNT** aggregate function to tally the total volume of pizzas delivered for each pizza type.
+- (Optional) Order the final dataset in ascending sequence by `pizza_name` for structured presentation.
 
 #### Answer:
 | pizza_name | pizzas_delivered |
@@ -175,9 +175,10 @@ LIMIT 1;
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
+- Group the filtered records by `order_id` to break down delivered pizzas per individual order.
 - Use the **COUNT** aggregate function to tally the total volume of pizzas delivered per order.
-- Order the final dataset in descending sequence by `pizzas_delivered` to keep the highest number on top.
-- Use **LIMIT** to show the maximum number of pizzas delivered in a single order.
+- Sort the aggregated results in descending order by `pizzas_delivered` to keep the highest number on top.
+- Apply **LIMIT** to isolate the single order with the maximum number of delivered pizzas.
 
 #### Answer:
 | order_id | pizzas_delivered |
@@ -200,9 +201,10 @@ ORDER BY co.customer_id;
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
-- Use the **SUM** aggregate function counting those pizzas with at least one modification and assigning the alias `change`.
-- Use the **SUM** aggregate function counting those pizzas that had no modifications whatsoever assigning the alias `no_change`.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
+- Group the filtered records by `customer_id` to calculate the metrics per customer.
+- Use the **SUM** aggregate function with a **CASE** statement counting those pizzas with at least one modification and assigning the alias `change`.
+- Use the **SUM** aggregate function with a **CASE** statement counting those pizzas that had no modifications whatsoever assigning the alias `no_change`.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -227,7 +229,7 @@ WHERE ro.cancellation IS NULL;
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
-- Use the **SUM** aggregate function counting those pizzas with at least one exclusion and at least one extra.
+- Use the **SUM** aggregate function with a **CASE** statement to tally pizzas that contain both exclusions and extras.
 
 #### Answer:
 | changed_pizza |
@@ -246,6 +248,7 @@ ORDER BY order_hour;
 
 #### Steps:
 - Use the **EXTRACT(HOUR FROM)** function to pull the hour component from the `order_time` column, assigning the alias `order_hour`.
+- Group the records by `order_hour` to calculate the metrics for each hour of the day.
 - Apply the **COUNT** aggregate function to tally the total volume of pizzas ordered.
 - (Optional) Order the final dataset in ascending sequence by `order_hour` for structured presentation.
 
@@ -271,8 +274,9 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 
 #### Steps:
 - Use the **TO_CHAR** function to extract and format `order_time` into the full name of the day of the week.
-- Apply the **COUNT DISTINCT** aggregate function to tally the total volume of orders, not pizzas.
-- (Optional) Order the final dataset in ascending sequence by `order_time` using the **EXTRACT(ISODOW FROM)** function for structured presentation.
+- Apply the **COUNT DISTINCT** aggregate function to tally the total volume of unique orders per day rather than individual pizza line items.
+- Group the records by `day_of_week` and `order_time` to enable proper chronological sorting.
+- (Optional) Order the final dataset in ascending sequence by `order_time` using the **EXTRACT(ISODOW FROM)** function to present days chronologically rather than alphabetically.
 
 #### Answer:
 | day_of_week | total_orders |
@@ -300,6 +304,7 @@ ORDER BY registration_week;
 - Extract the total number of elapsed days using the **DATE_PART('day', ...)** function.
 - Divide the elapsed days by 7 and apply **FLOOR()** with integer casting.
 - Add 1 to create sequential 1-week period buckets starting cleanly at 1, assigning the alias `registration_week`.
+- Group the records by `registration_week` to calculate the metrics per week.
 - Apply the **COUNT** aggregate function to tally the total volume of runner signups within each weekly period.
 - (Optional) Order the final output by `registration_week` in ascending sequence for clean chronological reporting.
 
@@ -343,15 +348,17 @@ ORDER BY runner_id;
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the joined records by `order_id`, `runner_id`, `order_time`, and `pickup_time` to ensure a unique grain per order transaction.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
-- Apply the **AVG** aggregate function to the calculated minutes and cast the resulting floating-point value to **NUMERIC** to avoid errors.
+- Apply the **AVG** aggregate function, grouping the records by `runner_id` to calculate the metric per runner.
+- Cast the resulting floating-point average to **NUMERIC** to avoid errors.
 - Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
+- (Optional) Order the final output in ascending sequence by `runner_id` for structured presentation.
 
 #### Answer:
-| num_pizzas | average_time |
-| ---------- | ------------ |
-| 1          | 14.33        |
-| 2          | 20.01        |
-| 3          | 10.47        |
+| runner_id | average_time |
+| --------- | ------------ |
+| 1         | 14.33        |
+| 2         | 20.01        |
+| 3         | 10.47        |
 
 ### 3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
 ````sql
@@ -378,10 +385,15 @@ ORDER BY num_pizzas;
 ````
 
 #### Steps:
-- Same as the previous exercise with some differences:
-	- Remove `runner_id` from the **SELECT** statement.
-	- Apply the **COUNT** aggregate function to tally the total volume of pizzas for each order.
-	- Divide the `average_time` by `num_pizzas` to get the specific average time for each pizza so it is easier to compare orders.
+- Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
+- Use the **COUNT** aggregate function to tally the total volume of pizzas for each order.
+- Group the CTE records by `order_id`, `order_time`, and `pickup_time` to establish a unique transaction grain per order.
+- Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
+- Apply the **AVG** aggregate function to compute `average_time` per pizza count group.
+- Cast the resulting floating-point average to **NUMERIC** to avoid errors.
+- Divide the `average_time` by `num_pizzas` to compute `average_time_per_pizza` for direct efficiency comparison.
+- Group and order the final output by `num_pizzas`.
 
 #### Answer:
 | num_pizzas | average_time | average_time_per_pizza |
@@ -390,14 +402,14 @@ ORDER BY num_pizzas;
 | 2          | 18.38        | 9.19                   |
 | 3          | 29.28        | 9.76                   |
 
-- On average, an order with a single pizza takes 12.36 minutes per pizza to prepare.
-- On average, an order with two pizzas takes 18.38 minutes to prepare with an average of 9.19 minutes per pizza. This seems to be the most efficient order.
-- On average, an order with three pizzas takes 29.28 minutes to prepare with an average of 9.76 minutes per pizza.
+- Yes, there is a relationship between the number of pizzas ordered and how long the order takes to prepare.
+- Ordering two pizzas seems to be the most efficient option whereas ordering just one pizza is the less efficient.
 
 ### 4. What was the average distance travelled for each customer?
 ````sql
 WITH order_distances AS (
     SELECT DISTINCT
+        co.order_id,
         co.customer_id,
         ro.distance
     FROM t_customer_orders co
@@ -415,10 +427,12 @@ ORDER BY customer_id;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`order_distances`) that joins the `t_customer_orders` and `t_runner_orders` tables.
-- Apply **DISTINCT** to collapse duplicate rows caused by joining the pizza-level detail table to the order-level runner table, ensuring each trip distance is represented uniquely per customer.
+- Define a Common Table Expression (`order_distances`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`distance IS NOT NULL`) to exclude cancelled orders.
+- Apply **DISTINCT** to collapse duplicate rows caused by joining the pizza-level detail table to the order-level runner table, ensuring each trip distance is represented uniquely per customer.
+- Group the filtered records by `customer_id` to calculate the metrics per customer.
 - Apply the **AVG** aggregate function to the `distance` column to compute the average for each customer.
+- Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -441,10 +455,10 @@ WHERE duration IS NOT NULL;
 ````
 
 #### Steps:
-- Apply the **MAX** aggregate function to find the longest delivery time.
-- Apply the **MIN** function to find the shortest delivery time.
-- Subtract the shortest delivery time from the longest delivery time directly..
-- (Optional) Apply a **WHERE** clause (`duration IS NOT NULL`) to exclude cancelled orders.
+- Apply a **WHERE** clause (`duration IS NOT NULL`) to exclude cancelled orders.
+- Apply the **MAX** aggregate function to calculate the longest delivery time as `longest_delivery`.
+- Apply the **MIN** aggregate function to calculate the shortest delivery time as `shortest_delivery`.
+- Subtract `shortest_delivery` from `longest_delivery` to calculate the variance between the fastest and slowest deliveries.
 
 #### Answer:
 | longest_delivery | shortest_delivery | difference |
@@ -453,53 +467,52 @@ WHERE duration IS NOT NULL;
 
 ### 6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
 ````sql
-SELECT 
+SELECT
     runner_id,
     order_id,
+    pickup_time,
     ROUND((distance / duration) * 60, 2) AS speed_kmh
 FROM t_runner_orders
 WHERE duration IS NOT NULL AND distance IS NOT NULL
-ORDER BY runner_id, order_id;
+ORDER BY runner_id, pickup_time;
 ````
 
 #### Steps:
-- Apply a **WHERE** clause to filter out incomplete records by keeping only rows where both `duration IS NOT NULL` and `distance IS NOT NULL`.
-- Divide the `distance` by `duration` to calculate kilometres per minute, and multiply by 60 to convert it into kilometres per hour (km/h).
-- (Optional) Order the final dataset in ascending sequence by `runner_id` and `order_id` for structured presentation.
+- Apply a **WHERE** clause (`duration IS NOT NULL` and `distance IS NOT NULL`) to filter out incomplete or cancelled records.
+- Divide `distance` by `duration` to calculate kilometres per minute, multiply by 60 to convert it into kilometres per hour (km/h).
+- (Optional) Order the final dataset in ascending sequence by `runner_id` and `pickup_time` for structured chronological presentation per runner.
 
 #### Answer:
-| runner_id | order_id | speed_kmh |
-| --------- | -------- | --------- |
-| 1         | 1        | 37.50     |
-| 1         | 2        | 44.44     |
-| 1         | 3        | 40.20     |
-| 1         | 10       | 60.00     |
-| 2         | 4        | 35.10     |
-| 2         | 7        | 60.00     |
-| 2         | 8        | 93.60     |
-| 3         | 5        | 40.00     |
+| runner_id | order_id | pickup_time         | speed_kmh |
+| --------- | -------- | ------------------- | --------- |
+| 1         | 1        | 2021-01-01 18:15:34 | 37.50     |
+| 1         | 2        | 2021-01-01 19:10:54 | 44.44     |
+| 1         | 3        | 2021-01-03 00:12:37 | 40.20     |
+| 1         | 10       | 2021-01-11 18:50:20 | 60.00     |
+| 2         | 4        | 2021-01-04 13:53:03 | 35.10     |
+| 2         | 7        | 2021-01-08 21:30:45 | 60.00     |
+| 2         | 8        | 2021-01-10 00:15:02 | 93.60     |
+| 3         | 5        | 2021-01-08 21:10:57 | 40.00     |
 
-- Runner 1’s average speed goes from 37.5 km/h to 60 km/h.
-- Runner 2’s average speed goes from 35.1 km/h to 93.6 km/h.
-- Runner 3’s average speed is 40 km/h.
+- There's an apparent upward trend — both runners with multiple deliveries (1 and 2) get faster over successive orders, most dramatically Runner 2 (35 → 60 → 93.6 km/h).
+- But with only 3-4 deliveries per runner, this sample is too small to draw a confident conclusion.
 
 ### 7. What is the successful delivery percentage for each runner?
 ```sql
 SELECT 
     runner_id,
-    ROUND(100.0 * SUM(CASE 
-        WHEN cancellation IS NULL THEN 1 
-        ELSE 0 
-    END) / COUNT(*), 2) AS successful_delivery_percentage
+    ROUND(100.0 * COUNT(*) FILTER (WHERE cancellation IS NULL) / COUNT(*), 2) AS successful_delivery_percentage
 FROM t_runner_orders
 GROUP BY runner_id
 ORDER BY runner_id;
 ````
 
 #### Steps:
-- Apply a **CASE** statement inside a **SUM** aggregate function to count successful deliveries, assigning a value of 1 when `cancellation IS NULL` and 0 otherwise.
-- Multiply the sum of successful deliveries by 100.0 to force floating-point arithmetic and prevent integer truncation.
-- Divide using **COUNT** to calculate the proportion of successful deliveries out of the total orders assigned to each runner.
+- Group by `runner_id` to compute the success percentage individually for each runner.
+- Apply conditional aggregation using **COUNT** and **FILTER (WHERE ...)** to isolate the count of successful deliveries per runner.
+- Divide using **COUNT** to calculate the proportion of successful deliveries out of all assigned orders.
+- Multiply the number of successful deliveries by 100.0 to convert the ratio into a percentage.
+- Wrap the calculation in **ROUND** to format the result to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `runner_id` for structured presentation.
 
 #### Answer:
@@ -509,97 +522,114 @@ ORDER BY runner_id;
 | 2         | 75.00                          |
 | 3         | 50.00                          |
 
-- Runner 1 has 100% successful delivery rate.
-- Runner 2 has 75% successful delivery rate.
-- Runner 3 has 50% successful delivery rate.
-
 
 ## C. Ingredient Optimisation
 
 ### 1. What are the standard ingredients for each pizza?
 ````sql
 WITH toppings AS (
-	SELECT 
-		pizza_id,
-		REGEXP_SPLIT_TO_TABLE(toppings, '[,\s]+')::INTEGER AS topping_id
-	FROM pizza_recipes
+    SELECT
+        pn.pizza_name,
+        topping_id_split::INTEGER AS topping_id
+    FROM pizza_recipes pr
+    INNER JOIN pizza_names pn
+        ON pr.pizza_id = pn.pizza_id
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS t(topping_id_split)
 )
 
 SELECT
-	t.pizza_id,
-	STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS standard_ingredients
+	t.pizza_name,
+	STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS standard_ingredients
 FROM toppings t
 INNER JOIN pizza_toppings pt
 	ON t.topping_id = pt.topping_id
-GROUP BY t.pizza_id
-ORDER BY t.pizza_id;
+GROUP BY t.pizza_name
+ORDER BY t.pizza_name;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`toppings`) to process the `pizza_recipes` table.
-- Select `pizza_id` and use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split the comma-delimited toppings string into individual rows.
-- Query the CTE alongside the `pizza_toppings` table performing an **INNER JOIN** on matching `topping_id` values.
-- Apply **STRING_AGG** to concatenate the ingredient names back into a comma-separated list.
-- (Optional) Order the final dataset in ascending sequence by `pizza_id` for structured presentation.
+- Define a Common Table Expression (`toppings`) that joins the `pizza_recipes` and `pizza_names` tables on `pizza_id`.
+- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited topping IDs into individual rows for each pizza.
+- Cast the split values to **INTEGER** to enable clean relational joining.
+- Use an **INNER JOIN** on `topping_id` to connect the `toppings` CTE and the `pizza_toppings` table.
+- Apply **STRING_AGG** ordered by `topping_id` to concatenate the ingredient names back into a comma-separated list.
+- Group and order the final output by `pizza_name`.
 
 #### Answer:
-| pizza_id | standard_ingredients                                                  |
-| -------- | --------------------------------------------------------------------- |
-| 1        | Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami |
-| 2        | Cheese, Mushrooms, Onions, Peppers, Tomato Sauce, Tomatoes            |
+| pizza_name | standard_ingredients                                                  |
+| ---------- | --------------------------------------------------------------------- |
+| Meatlovers | Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami |
+| Vegetarian | Cheese, Mushrooms, Onions, Peppers, Tomato Sauce, Tomatoes            |
 
 ### 2. What was the most commonly added extra?
 ````sql
-SELECT 
-	pt.topping_name,
-	COUNT(*) AS times_added
-FROM t_customer_orders,
-	LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
+WITH extras AS (
+    SELECT
+        pizza_id,
+  		REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+')::INTEGER AS topping_id
+    FROM t_customer_orders
+    WHERE extras IS NOT NULL
+)
+
+SELECT
+    pt.topping_name,
+    COUNT(*) AS times_added
+FROM extras e
 INNER JOIN pizza_toppings pt
-	ON topping::INTEGER = pt.topping_id
-WHERE extras IS NOT NULL 
+    ON e.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY times_added DESC
 LIMIT 1;
 ````
 
 #### Steps:
-- Use a **LATERAL** join paired with **REGEXP_SPLIT_TO_TABLE** to split the comma-delimited `extras` string column row-by-row into individual values.
-- Perform an **INNER JOIN** with the `pizza_toppings` table casting the split string value to an integer to match on `topping_id`.
-- Apply a **WHERE** clause to filter out missing records by keeping only rows where `extras IS NOT NULL`.
-- Sort the results in descending order by `times_added` and use **LIMIT 1** to isolate the single most frequently added extra.
+- Define a Common Table Expression (`extras`) to process the `t_customer_orders` table.
+- Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out records without modifications prior to unnesting.
+- Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited extra topping IDs into individual rows.
+- Cast the split values to **INTEGER** to enable clean relational joining.
+- Use an **INNER JOIN** on `topping_id` to connect the `extras` CTE and the `pizza_toppings` table.
+- Group the records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was added as an extra.
+- Sort the results in descending order by `times_added` and use **LIMIT 1** to isolate the single most frequently added extra topping.
 
 #### Answer:
 | topping_name | times_added |
 | ------------ | ----------- |
 | Bacon        | 4           |
 
-- Bacon is the most commonly added extra.
-
 ### 3. What was the most common exclusion?
 ````sql
-SELECT 
-	pt.topping_name,
-	COUNT(*) AS times_removed
-FROM t_customer_orders,
-	LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
+WITH exclusions AS (
+    SELECT
+        pizza_id,
+  		REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+')::INTEGER AS topping_id
+    FROM t_customer_orders
+    WHERE exclusions IS NOT NULL
+)
+
+SELECT
+    pt.topping_name,
+    COUNT(*) AS times_removed
+FROM exclusions e
 INNER JOIN pizza_toppings pt
-	ON topping::INTEGER = pt.topping_id
-WHERE exclusions IS NOT NULL 
+    ON e.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY times_removed DESC
 LIMIT 1;
 ````
 
 #### Steps:
-- Exactly the same as the previous exercise but swapping out `extras` for `exclusions`.
+- Define a Common Table Expression (`exclusions`) to process the `t_customer_orders` table.
+- Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out records without modifications prior to unnesting.
+- Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split the comma-delimited `exclusions` string into individual rows.
+- Cast the split values to **INTEGER** to enable clean relational joining.
+- Use an **INNER JOIN** on `topping_id` to connect the `exclusions` CTE and the `pizza_toppings` table.
+- Group the records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was removed.
+- Sort the aggregated results in descending order by `times_removed` and use **LIMIT 1** to isolate the single most frequently excluded topping.
 
 #### Answer:
 | topping_name | times_removed |
 | ------------ | ------------- |
 | Cheese       | 4             |
-
-- Cheese is the most common excluded topping.
 
 ### 4. Generate an order item for each record in the customers_orders table in the format of one of the following:
 - Meat Lovers
@@ -607,9 +637,9 @@ LIMIT 1;
 - Meat Lovers - Extra Bacon
 - Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
 ````sql
-WITH numbered_orders AS (
+WITH ordered_pizzas AS (
     SELECT 
-        ROW_NUMBER() OVER () AS record_id,
+        ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
 		order_id,
         pizza_id,
         exclusions,
@@ -618,48 +648,53 @@ WITH numbered_orders AS (
 ),
 exclusions AS (
     SELECT 
-        record_id,
-        STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS exclusions
-    FROM numbered_orders,
-		LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
+        op.record_id,
+        STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS exclusions
+    FROM ordered_pizzas op
+	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(exclusions, '[,\s]+') AS topping
     INNER JOIN pizza_toppings pt
 		ON topping::INTEGER = pt.topping_id
-    WHERE exclusions IS NOT NULL
-    GROUP BY record_id
+    WHERE op.exclusions IS NOT NULL
+    GROUP BY op.record_id
 ),
 additions AS (
     SELECT 
-        record_id,
-        STRING_AGG(pt.topping_name, ', ' ORDER BY LOWER(pt.topping_name)) AS additions
-    FROM numbered_orders,
-		LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
+        op.record_id,
+        STRING_AGG(pt.topping_name, ', ' ORDER BY pt.topping_id) AS additions
+    FROM ordered_pizzas op
+	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(extras, '[,\s]+') AS topping
     INNER JOIN pizza_toppings pt
         ON topping::INTEGER = pt.topping_id
-    WHERE extras IS NOT NULL
-    GROUP BY record_id
+    WHERE op.extras IS NOT NULL
+    GROUP BY op.record_id
 )
 
 SELECT
-    no.order_id,
-    pn.pizza_name || COALESCE(' - Exclude ' || e.exclusions, '') || COALESCE(' - Extra ' || a.additions, '') AS order_item
-FROM numbered_orders no
+    op.order_id,
+    pn.pizza_name
+		|| COALESCE(' - Exclude ' || e.exclusions, '')
+		|| COALESCE(' - Extra ' || a.additions, '') AS pizza_ordered
+FROM ordered_pizzas op
 INNER JOIN pizza_names pn
-	ON no.pizza_id = pn.pizza_id
+	ON op.pizza_id = pn.pizza_id
 LEFT JOIN exclusions e
-	ON no.record_id = e.record_id
+	ON op.record_id = e.record_id
 LEFT JOIN additions a
-	ON no.record_id = a.record_id
-ORDER BY no.record_id;
+	ON op.record_id = a.record_id
+ORDER BY op.record_id;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`numbered_orders`) to process the `customer_orders` table using **ROW_NUMBER() OVER ()** to assign a unique anchor ID to every single line item.
-- Build an exclusions translation CTE (`exclusions`) referencing `numbered_orders`.
-- Use **LATERAL REGEXP_SPLIT_TO_TABLE** to swap `topping_id` for `topping_name`, and aggregate them back together using **STRING_AGG** sorted alphabetically grouped by `record_id`.
-- Build an additions translation CTE (`additions`) similarly to the previous one using `extras` instead of `exclusions` .
-- Perform an **INNER JOIN** against `pizza_names` to fetch the base `pizza_name`, and **LEFT JOIN** both translation CTEs using `record_id`.
-- Apply string formatting by concatenating the `pizza_name` with **COALESCE** statements to dynamically append modifications only when they exist.
-- (Optional) Order the final dataset in ascending sequence by `record_id` to keep the original table order.
+- Define a Common Table Expression (`ordered_pizzas`) to process the `t_customer_orders` table.
+- Use **ROW_NUMBER() OVER ()** to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
+- Define a Common Table Expression (`exclusions`) that joins the `ordered_pizzas` CTE and the `pizza_toppings` table on `topping_id`.
+- Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out missing records.
+- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split comma-delimited `exclusions` strings into individual rows for each pizza.
+- Cast split values to **INTEGER** and apply **STRING_AGG** sorted by `topping_id` and grouped by `record_id` to rebuild an ordered, comma-separated text list.
+- Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and S**STRING_AGG** re-aggregation logic to `extras`.
+- Perform an **INNER JOIN** against `pizza_names` on `pizza_id`, and **LEFT JOIN** both modification CTEs back to `ordered_pizzas` on `record_id`.
+- Apply string concatenation (||) combined with **COALESCE** to dynamically append ` - Exclude ...` and ` - Extra ...` label strings only when modifications are present.
+- (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
 #### Answer:
 | order_id | order_item                                                      |
@@ -682,104 +717,91 @@ ORDER BY no.record_id;
 ### 5. Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 - For example: "Meat Lovers: 2xBacon, Beef, ..., Salami"
 ````sql
-WITH numbered_orders AS (
-    SELECT
-        ROW_NUMBER() OVER () AS record_id,
-        order_id,
-        pizza_id,
-        exclusions,
-        extras
+WITH ordered_pizzas AS (
+    SELECT 
+		ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
+		order_id,
+		pizza_id,
+		extras,
+		exclusions		
     FROM t_customer_orders
 ),
-base_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    JOIN pizza_recipes pr
-		ON no.pizza_id = pr.pizza_id
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS topping
-),
-extra_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.extras, '[,\s]+') AS topping
-    WHERE no.extras IS NOT NULL
-),
-combined_ingredients AS (
-    -- Base ingredients
-    SELECT
-		record_id,
-		topping_id
-	FROM base_ingredients
-	
-    UNION ALL
-	
-    -- Extra ingredients added to the order
-    SELECT
-		record_id,
-		topping_id
-	FROM extra_ingredients
-    
-    EXCEPT ALL
-    
-    -- Excluded ingredients removed from the order
-    SELECT 
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.exclusions, '[,\s]+') AS topping
-    WHERE no.exclusions IS NOT NULL
+ingredient_list AS (
+	(
+		SELECT
+			op.record_id,
+			base_id::INTEGER AS topping_id
+		FROM ordered_pizzas op
+		INNER JOIN pizza_recipes pr
+			ON op.pizza_id = pr.pizza_id
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS base_id
+		
+		UNION ALL
+		
+		SELECT
+			op.record_id,
+			extra_id::INTEGER AS topping_id
+		FROM ordered_pizzas op
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(op.extras, '[,\s]+') AS extra_id
+		WHERE op.extras IS NOT NULL
+	)
+	EXCEPT ALL
+	SELECT
+		op.record_id,
+  		excluded_id::INTEGER AS topping_id
+	FROM ordered_pizzas op
+  	CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(op.exclusions, '[,\s]+') AS excluded_id
+	WHERE op.exclusions IS NOT NULL	
 ),
 ingredient_counts AS (
     SELECT
-        ci.record_id,
-        ci.topping_id,
-        COUNT(*) AS count
-    FROM combined_ingredients ci
-    GROUP BY ci.record_id, ci.topping_id
-),
-final_order_ingredients AS (
-    SELECT
-        ic.record_id,
-        STRING_AGG(
-            CASE 
-                WHEN ic.count > 1 THEN ic.count || 'x' || pt.topping_name
-                ELSE pt.topping_name
-            END, 
-            ', ' 
-            ORDER BY LOWER(pt.topping_name)
-        ) AS ingredient_list
-    FROM ingredient_counts ic
-    JOIN pizza_toppings pt
-		ON ic.topping_id = pt.topping_id
-    GROUP BY ic.record_id
+		il.record_id,
+		pt.topping_name,
+		COUNT(*) AS count
+    FROM ingredient_list il
+	INNER JOIN pizza_toppings pt
+		ON il.topping_id = pt.topping_id
+    GROUP BY il.record_id, pt.topping_name
 )
 
 SELECT
-	no.order_id,
-    pn.pizza_name || ': ' || foi.ingredient_list AS order_item
-FROM numbered_orders no
-JOIN pizza_names pn
-	ON no.pizza_id = pn.pizza_id
-JOIN final_order_ingredients foi
-	ON no.record_id = foi.record_id
-ORDER BY no.record_id;
+	op.order_id,
+	pn.pizza_name || ': ' || STRING_AGG(
+		CASE
+			WHEN ic.count > 1 THEN ic.count || 'x' || ic.topping_name
+			ELSE ic.topping_name
+		END,
+		', '
+		ORDER BY LOWER(ic.topping_name)
+	) AS ingredient_list
+FROM ingredient_counts ic
+INNER JOIN ordered_pizzas op
+	ON ic.record_id = op.record_id
+INNER JOIN pizza_names pn
+	ON op.pizza_id = pn.pizza_id
+GROUP BY op.record_id, op.order_id, pn.pizza_name
+ORDER BY op.record_id;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`numbered_orders`) to process the `customer_orders` table using **ROW_NUMBER() OVER ()** to assign a unique anchor ID to every single line item.
-- Define a Common Table Expression (`base_ingredients`) that joins `numbered_orders` to `pizza_recipes`.
-- Use **LATERAL REGEXP_SPLIT_TO_TABLE** to unnest `toppings` into individual rows with their corresponding record_id.
-- Define a Common Table Expression (`extra_ingredients`) that unnests any non-null `extras` from `numbered_orders` into separate rows mapped to the same record_id.
-- Define a Common Table Expression (`combined_ingredients`) that combines `base_ingredients` and `extra_ingredients` using **UNION ALL**, then subtract out any unnested exclusions using **EXCEPT ALL**.
-- Define a Common Table Expression (`ingredient_counts`) that group `combined_ingredients` by `record_id` and `topping_id` to get a total count for each ingredient per order line.
-- Define a Common Table Expression (`final_order_ingredients`) that joins `ingredient_counts` to `pizza_toppings`,
-- Use **STRING_AGG** and a **CASE** statement to prepend multipliers when an ingredient count exceeds 1, while sorting alphabetically by **LOWER**.
-- Join `pizza_names` to `final_order_ingredients` on `pizza_id` for the base pizza name, then join `final_order_ingredients` on `record_id` to generate the complete formatted string.
-- (Optional) Order the final dataset in ascending sequence by `record_id` to keep the original table order.
+- Define a Common Table Expression (`ordered_pizzas`) to process the `customer_orders` table.
+- Use **ROW_NUMBER() OVER ()** sorting by `order_id` to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
+- Define a Common Table Expression (`ingredient_list`) that unrolls base recipe toppings and extra toppings and subtracts unnested exclusions:
+	- Use an **INNER JOIN** on `pizza_id` to connect the `ordered_pizzas` CTE and the `pizza_recipes` table.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
+	- Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out missing records.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
+	- Merge them using **UNION ALL**.
+	- Apply a **WHERE** clause (`exclusions IS NOT NULL	`) to filter out missing records.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
+	- Subtracts unnested exclusions using **EXCEPT ALL**.
+- Define a Common Table Expression (`ingredient_list`) to process the `combined_ingredients` CTE.
+- Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
+- Group the records by `record_id` and `topping_name` and apply the **COUNT** aggregate function to compute individual topping quantities.
+- Use an **INNER JOIN** from `ingredient_counts` to `ordered_pizzas` on `record_id` and to `pizza_names` on `pizza_id`.
+- Group the main query results by `record_id`, `order_id` and `pizza_name`.
+- Apply string concatenation (||) combined with **STRING_AGG** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER**.
+- (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
 #### Answer:
 | order_id | order_item                                                                          |
@@ -798,80 +820,74 @@ ORDER BY no.record_id;
 | 9 	   | Meatlovers: 2xBacon, BBQ Sauce, Beef, 2xChicken, Mushrooms, Pepperoni, Salami       |
 | 10 	   | Meatlovers: Bacon, BBQ Sauce, Beef, Cheese, Chicken, Mushrooms, Pepperoni, Salami   |
 | 10 	   | Meatlovers: 2xBacon, Beef, 2xCheese, Chicken, Pepperoni, Salami                     |
-
+ 
 ### 6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
 ````sql
-WITH numbered_orders AS (
+WITH delivered_pizzas AS (
     SELECT
-        ROW_NUMBER() OVER () AS record_id,
+        ROW_NUMBER() OVER (ORDER BY co.order_id) AS record_id,
         co.order_id,
         co.pizza_id,
-  		co.extras,
-        co.exclusions
+        co.exclusions,
+        co.extras
     FROM t_customer_orders co
-  	INNER JOIN t_runner_orders ro
-		ON co.order_id = ro.order_id
-  		AND ro.cancellation IS NULL
+    INNER JOIN t_runner_orders ro
+        ON co.order_id = ro.order_id
+    WHERE ro.cancellation IS NULL
 ),
-base_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    JOIN pizza_recipes pr
-		ON no.pizza_id = pr.pizza_id
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS topping
-),
-extra_ingredients AS (
-    SELECT
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.extras, '[,\s]+') AS topping
-    WHERE no.extras IS NOT NULL
-),
-combined_ingredients AS (
-    -- Base ingredients
-    SELECT
-		record_id,
-		topping_id
-	FROM base_ingredients
-	
-    UNION ALL
-	
-    -- Extra ingredients added to the order
-    SELECT
-		record_id,
-		topping_id
-	FROM extra_ingredients
-    
+ingredient_list AS (
+    (
+		SELECT
+			dp.record_id,
+			base_id::INTEGER AS topping_id
+		FROM delivered_pizzas dp
+		INNER JOIN pizza_recipes pr
+			ON dp.pizza_id = pr.pizza_id
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(pr.toppings, '[,\s]+') AS base_id
+		
+		UNION ALL
+		
+		SELECT
+			dp.record_id,
+			extra_id::INTEGER AS topping_id
+		FROM delivered_pizzas dp
+		CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(dp.extras, '[,\s]+') AS extra_id
+		WHERE dp.extras IS NOT NULL
+    )
     EXCEPT ALL
-    
-    -- Excluded ingredients removed from the order
-    SELECT 
-        no.record_id,
-        topping::INTEGER AS topping_id
-    FROM numbered_orders no
-    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(no.exclusions, '[,\s]+') AS topping
-    WHERE no.exclusions IS NOT NULL
+    SELECT
+		dp.record_id,
+		excluded_id::INTEGER AS topping_id
+    FROM delivered_pizzas dp
+    CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(dp.exclusions, '[,\s]+') AS excluded_id
+    WHERE dp.exclusions IS NOT NULL
 )
 
 SELECT
     pt.topping_name,
     COUNT(*) AS quantity
-FROM combined_ingredients ci
+FROM ingredient_list il
 INNER JOIN pizza_toppings pt
-	ON ci.topping_id = pt.topping_id
+	ON il.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY quantity DESC;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`numbered_orders`) to process the `customer_orders` table using **ROW_NUMBER() OVER ()** to assign a unique anchor ID to every single line item.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
-- Define `base_ingredients`, `extra_ingredients`, and `combined_ingredients` exactly like in the previous exercise.
-- Query `combined_ingredients` alongside the `pizza_toppings` table performing an **INNER JOIN** on matching `topping_id` values.
-- Use the **COUNT** aggregate function to tally the total number of toppings using an alias (`quantity`).
+- Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
+- Use **ROW_NUMBER() OVER ()** sorting by `order_id` to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
+- Define a Common Table Expression (`ingredient_list`) that unrolls base recipe toppings and extra toppings and subtracts unnested exclusions:
+	- Use an **INNER JOIN** on `pizza_id` to connect the `ordered_pizzas` CTE and the `pizza_recipes` table.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
+	- Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out missing records.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
+	- Merge them using **UNION ALL**.
+	- Apply a **WHERE** clause (`exclusions IS NOT NULL	`) to filter out missing records.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
+	- Subtracts unnested exclusions using **EXCEPT ALL**.
+- Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
+- Group the records by `topping_name` and apply the **COUNT** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
 - Order the final dataset in descending sequence by `quantity` for structured presentation.
 
 #### Answer:
