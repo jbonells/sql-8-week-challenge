@@ -452,31 +452,30 @@ ORDER BY quantity DESC;
 
 -- 1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
 SELECT
-    SUM(
-		CASE
-			WHEN co.pizza_id = 1 THEN 12
-			ELSE 10
-		END
-	) AS revenue
-FROM t_customer_orders co
-INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id
-	AND ro.cancellation IS NULL
-
--- 2. What if there was an additional $1 charge for any pizza extras?
---    Add cheese is $1 extra
-SELECT
-    SUM(
-        CASE
-            WHEN co.pizza_id = 1 THEN 12 
-            ELSE 10 
-        END 
-        + COALESCE(cardinality(string_to_array(NULLIF(TRIM(co.extras), ''), ',')), 0)
-    ) AS revenue
+	SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
     ON co.order_id = ro.order_id
-    AND ro.cancellation IS NULL;
+WHERE ro.cancellation IS NULL;
+
+-- 2. What if there was an additional $1 charge for any pizza extras?
+--    Add cheese is $1 extra
+WITH delivered_pizzas AS (
+    SELECT
+		co.pizza_id,
+		(SELECT COUNT(*) FROM REGEXP_SPLIT_TO_TABLE(co.extras, '[,\s]+')) AS num_extras
+    FROM t_customer_orders co
+    INNER JOIN t_runner_orders ro
+        ON co.order_id = ro.order_id
+    WHERE ro.cancellation IS NULL
+)
+
+SELECT
+	SUM(
+		CASE WHEN pizza_id = 1 THEN 12 ELSE 10 END
+		+ num_extras
+    ) AS revenue
+FROM delivered_pizzas
 
 -- 3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
 DROP TABLE IF EXISTS runner_ratings;
@@ -484,15 +483,17 @@ CREATE TABLE runner_ratings (
     order_id INTEGER PRIMARY KEY,
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5)
 );
-INSERT INTO runner_ratings (order_id, rating) VALUES
-(1, 5),
-(2, 4),
-(3, 5),
-(4, 3),
-(5, 5),
-(7, 4),
-(8, 5),
-(10, 2);
+INSERT INTO runner_ratings
+	(order_id, rating)
+VALUES
+	(1, 5),
+	(2, 4),
+	(3, 5),
+	(4, 3),
+	(5, 5),
+	(7, 4),
+	(8, 5),
+	(10, 2);
 
 -- 4. Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
 --    - customer_id
@@ -515,13 +516,15 @@ SELECT
     ROUND(EXTRACT(EPOCH FROM (ro.pickup_time - co.order_time)) / 60)::INTEGER AS time_difference,
     ro.duration,
     ROUND((ro.distance / ro.duration) * 60, 2) AS average_speed,
-    COUNT(co.pizza_id) OVER (PARTITION BY co.order_id) AS total_pizzas
+    COUNT(co.pizza_id) AS total_pizzas
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
 	ON co.order_id = ro.order_id
-    AND ro.cancellation IS NULL
-LEFT JOIN runner_ratings rr
+INNER JOIN runner_ratings rr
 	ON co.order_id = rr.order_id
+WHERE ro.cancellation IS NULL
+GROUP BY co.customer_id, co.order_id, ro.runner_id, rr.rating, co.order_time, ro.pickup_time, ro.duration, ro.distance
+ORDER BY co.order_id;
 
 -- 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre traveled - how much money does Pizza Runner have left over after these deliveries?
 WITH total_payouts AS (
@@ -532,16 +535,11 @@ WITH total_payouts AS (
 ),
 total_revenue AS (
 	SELECT
-		SUM(
-			CASE
-				WHEN co.pizza_id = 1 THEN 12
-				ELSE 10
-			END
-		) AS revenue
+		SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-		AND ro.cancellation IS NULL
+	WHERE ro.cancellation IS NULL
 )
 
 SELECT

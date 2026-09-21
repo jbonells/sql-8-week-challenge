@@ -344,7 +344,7 @@ ORDER BY runner_id;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables.
+- Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the joined records by `order_id`, `runner_id`, `order_time`, and `pickup_time` to ensure a unique grain per order transaction.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
@@ -691,7 +691,7 @@ ORDER BY op.record_id;
 - Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out missing records.
 - Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split comma-delimited `exclusions` strings into individual rows for each pizza.
 - Cast split values to **INTEGER** and apply **STRING_AGG** sorted by `topping_id` and grouped by `record_id` to rebuild an ordered, comma-separated text list.
-- Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and S**STRING_AGG** re-aggregation logic to `extras`.
+- Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and **STRING_AGG** re-aggregation logic to `extras`.
 - Perform an **INNER JOIN** against `pizza_names` on `pizza_id`, and **LEFT JOIN** both modification CTEs back to `ordered_pizzas` on `record_id`.
 - Apply string concatenation (||) combined with **COALESCE** to dynamically append ` - Exclude ...` and ` - Extra ...` label strings only when modifications are present.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
@@ -874,8 +874,8 @@ ORDER BY quantity DESC;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables.
-- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
+- Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
 - Use **ROW_NUMBER() OVER ()** sorting by `order_id` to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
 - Define a Common Table Expression (`ingredient_list`) that unrolls base recipe toppings and extra toppings and subtracts unnested exclusions:
 	- Use an **INNER JOIN** on `pizza_id` to connect the `ordered_pizzas` CTE and the `pizza_recipes` table.
@@ -912,62 +912,56 @@ ORDER BY quantity DESC;
 ### 1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
 ````sql
 SELECT
-    SUM(
-		CASE
-			WHEN co.pizza_id = 1 THEN 12
-			ELSE 10
-		END
-	) AS revenue
+	SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
-	ON co.order_id = ro.order_id
-	AND ro.cancellation IS NULL
+    ON co.order_id = ro.order_id
+WHERE ro.cancellation IS NULL;
 ````
 
 #### Steps:
-- Use a conditional **CASE** statement to map each pizza type to its respective price.
-- Apply the **SUM** aggregate function to calculate the grand total of incoming sales.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
-- (Optional) Assign the alias `revenue` to the resulting column for clear presentation in the final output report.
+- Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
+- Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
+- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
 | revenue |
 | ------- |
 | 138     |
 
-- Pizza Runner has made $138 so far.
-
 ### 2. What if there was an additional $1 charge for any pizza extras?
 - Add cheese is $1 extra
 ````sql
+WITH delivered_pizzas AS (
+    SELECT
+		co.pizza_id,
+		(SELECT COUNT(*) FROM REGEXP_SPLIT_TO_TABLE(co.extras, '[,\s]+')) AS num_extras
+    FROM t_customer_orders co
+    INNER JOIN t_runner_orders ro
+        ON co.order_id = ro.order_id
+    WHERE ro.cancellation IS NULL
+)
+
 SELECT
-    SUM(
-        CASE
-            WHEN co.pizza_id = 1 THEN 12 
-            ELSE 10 
-        END 
-        + COALESCE(cardinality(string_to_array(NULLIF(TRIM(co.extras), ''), ',')), 0)
+	SUM(
+		CASE WHEN pizza_id = 1 THEN 12 ELSE 10 END
+		+ num_extras
     ) AS revenue
-FROM t_customer_orders co
-INNER JOIN t_runner_orders ro
-    ON co.order_id = ro.order_id
-    AND ro.cancellation IS NULL;
+FROM delivered_pizzas
 ````
 
 #### Steps:
-- Use a conditional **CASE** statement to map each pizza type to its respective price.
-- For each individual pizza row, apply `string_to_array` to parse the comma-separated `extras` string into an array and `cardinality` to count its elements.
-- Include **TRIM**, **NULLIF**, and **COALESCE** to handle empty or null values safely.
-- Apply the **SUM** aggregate function to calculate the grand total of incoming sales.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
-- (Optional) Assign the alias `revenue` to the resulting column for clear presentation in the final output report.
+- Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
+- Use a correlated scalar subquery with **COUNT** aggregate function over **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest and count extra toppings for each order line item.
+- Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
+- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
 | revenue |
 | ------- |
 | 142     |
-
-- Pizza Runner would have made $142 if there was an additional $1 charge for any pizza extras.
 
 ### 3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
 ````sql
@@ -976,22 +970,24 @@ CREATE TABLE runner_ratings (
     order_id INTEGER PRIMARY KEY,
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5)
 );
-INSERT INTO runner_ratings (order_id, rating) VALUES
-(1, 5),
-(2, 4),
-(3, 5),
-(4, 3),
-(5, 5),
-(7, 4),
-(8, 5),
-(10, 2);
+INSERT INTO runner_ratings
+	(order_id, rating)
+VALUES
+	(1, 5),
+	(2, 4),
+	(3, 5),
+	(4, 3),
+	(5, 5),
+	(7, 4),
+	(8, 5),
+	(10, 2);
 ````
 
 #### Steps:
-- Use **DROP TABLE** to ensure a clean environment, preventing errors if you need to rerun `schema.sql` multiple times.
+- Use **DROP TABLE IF EXISTS** to safely remove any pre-existing `runner_ratings` table, ensuring the schema setup script can be rerun without throw-errors.
 - Use **CREATE TABLE** to create the `runner_ratings` table structure.
-- Set `order_id` as **PRIMARY KEY** so each delivery rating uniquely maps to a single order without duplicates.
-- Add a **CHECK** constraint on the `rating` column to ensure that only valid numerical scores within the 1 to 5 range can be entered.
+- Set `order_id` as **PRIMARY KEY** to ensure each order maps uniquely to a single rating and prevent duplicate entries.
+- Apply a **NOT NULL** and **CHECK** constraints on the `rating` column to enforce domain integrity and restrict scores strictly to the valid 1–5 range.
 - Use **INSERT INTO** statements to populate the table.
 
 #### Answer:
@@ -1020,23 +1016,26 @@ SELECT
     ROUND(EXTRACT(EPOCH FROM (ro.pickup_time - co.order_time)) / 60)::INTEGER AS time_difference,
     ro.duration,
     ROUND((ro.distance / ro.duration) * 60, 2) AS average_speed,
-    COUNT(co.pizza_id) OVER (PARTITION BY co.order_id) AS total_pizzas
+    COUNT(co.pizza_id) AS total_pizzas
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
 	ON co.order_id = ro.order_id
-    AND ro.cancellation IS NULL
-LEFT JOIN runner_ratings rr
+INNER JOIN runner_ratings rr
 	ON co.order_id = rr.order_id
+WHERE ro.cancellation IS NULL
+GROUP BY co.customer_id, co.order_id, ro.runner_id, rr.rating, co.order_time, ro.pickup_time, ro.duration, ro.distance
+ORDER BY co.order_id;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
+- Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `runner_ratings` tables.
 - Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
-- Use a **LEFT JOIN** on `order_id` to connect the `t_customer_orders` and `runner_ratings` tables.
-- Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
-- (Optional) Wrap it in **ROUND** to produce a clean whole-number metric.
-- Divide the `distance` by `duration` to calculate kilometres per minute, and multiply by 60 to convert it into kilometres per hour (km/h).
-- Use the window function **COUNT() OVER ()** to partition by `order_id` to calculate the total number of pizzas for each order.
+- Group the joined records by all order and delivery attributes to collapse pizza-level line items into a single order grain.
+- Calculate pickup delay in minutes using **EXTRACT(EPOCH FROM ...)**, divide it by 60, wrapping in **ROUND** and casting to **INTEGER** as `time_difference`.
+- Calculate average delivery speed in km/h by dividing `distance` by `duration` and multiply by 60 rounded to two decimal places as `average_speed`.
+- Apply **COUNT** to tally the total volume of pizzas ordered per delivery as `total_pizzas`.
+- (Optional) Order the final dataset in ascending sequence by `order_id` for structured presentation.
 
 #### Answer:
 | customer_id | order_id | runner_id | rating | order_time          | pickup_time         | time_difference | duration | average_speed | total_pizzas |
@@ -1044,14 +1043,10 @@ LEFT JOIN runner_ratings rr
 | 101         | 1        | 1         | 5      | 2021-01-01 18:05:02 | 2021-01-01 18:15:34 | 11              | 32       | 37.50         | 1            |
 | 101         | 2        | 1         | 4      | 2021-01-01 19:00:52 | 2021-01-01 19:10:54 | 10              | 27       | 44.44         | 1            |
 | 102         | 3        | 1         | 5      | 2021-01-02 23:51:23 | 2021-01-03 00:12:37 | 21              | 20       | 40.20         | 2            |
-| 102         | 3        | 1         | 5      | 2021-01-02 23:51:23 | 2021-01-03 00:12:37 | 21              | 20       | 40.20         | 2            |
-| 103         | 4        | 2         | 3      | 2021-01-04 13:23:46 | 2021-01-04 13:53:03 | 29              | 40       | 35.10         | 3            |
-| 103         | 4        | 2         | 3      | 2021-01-04 13:23:46 | 2021-01-04 13:53:03 | 29              | 40       | 35.10         | 3            |
 | 103         | 4        | 2         | 3      | 2021-01-04 13:23:46 | 2021-01-04 13:53:03 | 29              | 40       | 35.10         | 3            |
 | 104         | 5        | 3         | 5      | 2021-01-08 21:00:29 | 2021-01-08 21:10:57 | 10              | 15       | 40.00         | 1            |
 | 105         | 7        | 2         | 4      | 2021-01-08 21:20:29 | 2021-01-08 21:30:45 | 10              | 25       | 60.00         | 1            |
 | 102         | 8        | 2         | 5      | 2021-01-09 23:54:33 | 2021-01-10 00:15:02 | 20              | 15       | 93.60         | 1            |
-| 104         | 10       | 1         | 2      | 2021-01-11 18:34:49 | 2021-01-11 18:50:20 | 16              | 10       | 60.00         | 2            |
 | 104         | 10       | 1         | 2      | 2021-01-11 18:34:49 | 2021-01-11 18:50:20 | 16              | 10       | 60.00         | 2            |
 
 ### 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre travelled - how much money does Pizza Runner have left over after these deliveries?
@@ -1064,16 +1059,11 @@ WITH total_payouts AS (
 ),
 total_revenue AS (
 	SELECT
-		SUM(
-			CASE
-				WHEN co.pizza_id = 1 THEN 12
-				ELSE 10
-			END
-		) AS revenue
+		SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
 	FROM t_customer_orders co
 	INNER JOIN t_runner_orders ro
 		ON co.order_id = ro.order_id
-		AND ro.cancellation IS NULL
+	WHERE ro.cancellation IS NULL
 )
 
 SELECT
@@ -1082,27 +1072,29 @@ FROM total_revenue tr, total_payouts tp;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`total_payouts`) to process the `runner_orders` table using the **SUM** aggregate function to to determine what the runners are owed.
-- Apply a **WHERE** clause to filter out cancelled orders. There are several options to do this step correctly.
-- Define a Common Table Expression (`total_revenue`) that joins `t_customer_orders` to `t_runner_orders`.
-- Use a conditional **CASE** statement to map each pizza type to its respective price.
-- Apply the **SUM** aggregate function to calculate the grand total of incoming sales.
-- Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
-- Subtract the total runner payouts from the total pizza revenue.
-- (Optional) Wrap it in **ROUND** to produce a clean whole-number metric.
+- Define a Common Table Expression (`total_payouts`) to process the `t_runner_orders` table.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
+- Use the **SUM** aggregate function to compute total distance covered and multiply by $0.30 per kilometer to compute total runner delivery payouts as `payout`.
+- Define a Common Table Expression (`total_revenue`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
+- Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
+- Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
+- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
+- Combine both single-row CTEs via an implicit cross join.
+- Subtract total runner payouts from gross revenue, , wrapping the result in **ROUND** to calculate final earnings formatted to two decimal places as `net_profit`.
 
 #### Answer:
 | net_profit |
 | ---------- |
 | 94.44      |
 
-- Pizza Runner has $94.44 left after paying the runners.
-
 
 ## E. Bonus Questions
 
 ### 1. If Danny wants to expand his range of pizzas - how would this impact the existing data design?
 Relational databases are built for data expansion; the schema structure itself doesn't need to change at all. Expanding the range of pizzas only requires data updates (inserts) rather than a design redesign.
+
+One weakness would be that `toppings` stores topping IDs as a delimited string rather than a normalized junction table, which required string-parsing techniques for every ingredient-related query.
+A `pizza_recipe_toppings(pizza_id, topping_id)` table would have avoided this entirely.
 
 ### 2. Write an INSERT statement to demonstrate what would happen if a new Supreme pizza with all the toppings was added to the Pizza Runner menu?
 ````sql
