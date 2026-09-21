@@ -387,8 +387,8 @@ ORDER BY num_pizzas;
 #### Steps:
 - Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
+- Group the filtered records by `order_id`, `order_time`, and `pickup_time` to establish a unique transaction grain per order.
 - Use the **COUNT** aggregate function to tally the total volume of pizzas for each order.
-- Group the CTE records by `order_id`, `order_time`, and `pickup_time` to establish a unique transaction grain per order.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
 - Apply the **AVG** aggregate function to compute `average_time` per pizza count group.
 - Cast the resulting floating-point average to **NUMERIC** to avoid errors.
@@ -430,7 +430,7 @@ ORDER BY customer_id;
 - Define a Common Table Expression (`order_distances`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`distance IS NOT NULL`) to exclude cancelled orders.
 - Apply **DISTINCT** to collapse duplicate rows caused by joining the pizza-level detail table to the order-level runner table, ensuring each trip distance is represented uniquely per customer.
-- Group the filtered records by `customer_id` to calculate the metrics per customer.
+- Group the records by `customer_id` to calculate the metrics per customer.
 - Apply the **AVG** aggregate function to the `distance` column to compute the average for each customer.
 - Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
@@ -508,7 +508,7 @@ ORDER BY runner_id;
 ````
 
 #### Steps:
-- Group by `runner_id` to compute the success percentage individually for each runner.
+- Group records by `runner_id` to compute the success percentage individually for each runner.
 - Apply conditional aggregation using **COUNT** and **FILTER (WHERE ...)** to isolate the count of successful deliveries per runner.
 - Divide using **COUNT** to calculate the proportion of successful deliveries out of all assigned orders.
 - Multiply the number of successful deliveries by 100.0 to convert the ratio into a percentage.
@@ -588,7 +588,7 @@ LIMIT 1;
 - Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited extra topping IDs into individual rows.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `extras` CTE and the `pizza_toppings` table.
-- Group the records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was added as an extra.
+- Group the joined records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was added as an extra.
 - Sort the results in descending order by `times_added` and use **LIMIT 1** to isolate the single most frequently added extra topping.
 
 #### Answer:
@@ -623,7 +623,7 @@ LIMIT 1;
 - Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split the comma-delimited `exclusions` string into individual rows.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `exclusions` CTE and the `pizza_toppings` table.
-- Group the records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was removed.
+- Group the joined records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was removed.
 - Sort the aggregated results in descending order by `times_removed` and use **LIMIT 1** to isolate the single most frequently excluded topping.
 
 #### Answer:
@@ -797,9 +797,9 @@ ORDER BY op.record_id;
 	- Subtracts unnested exclusions using **EXCEPT ALL**.
 - Define a Common Table Expression (`ingredient_list`) to process the `combined_ingredients` CTE.
 - Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
-- Group the records by `record_id` and `topping_name` and apply the **COUNT** aggregate function to compute individual topping quantities.
+- Group the joined records by `record_id` and `topping_name` and apply the **COUNT** aggregate function to compute individual topping quantities.
 - Use an **INNER JOIN** from `ingredient_counts` to `ordered_pizzas` on `record_id` and to `pizza_names` on `pizza_id`.
-- Group the main query results by `record_id`, `order_id` and `pizza_name`.
+- Group the main query results by `record_id`, `order_id` and `pizza_name` to preserve individual line-item granularity across duplicate pizza orders.
 - Apply string concatenation (||) combined with **STRING_AGG** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER**.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
@@ -887,7 +887,7 @@ ORDER BY quantity DESC;
 	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
 	- Subtracts unnested exclusions using **EXCEPT ALL**.
 - Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
-- Group the records by `topping_name` and apply the **COUNT** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
+- Group the joined records by `topping_name` and apply the **COUNT** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
 - Order the final dataset in descending sequence by `quantity` for structured presentation.
 
 #### Answer:
