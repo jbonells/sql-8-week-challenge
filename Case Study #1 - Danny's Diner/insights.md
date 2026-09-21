@@ -9,12 +9,13 @@ FROM sales s
 INNER JOIN menu m
 	ON s.product_id = m.product_id
 GROUP BY s.customer_id
-ORDER BY s.customer_id ASC;
+ORDER BY s.customer_id;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
-- Apply the **SUM()** aggregate function to `price` on the `menu` table to add the total amount each customer spent at the restaurant.
+- Group the joined records by `customer_id` to compute metrics at the individual customer grain.
+- Apply the **SUM()** aggregate function to compute total expenditure per customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -31,11 +32,12 @@ SELECT
 	COUNT(DISTINCT order_date) AS total_visits
 FROM sales
 GROUP BY customer_id
-ORDER BY customer_id ASC;
+ORDER BY customer_id;
 ````
 
 #### Steps:
-- Use **COUNT DISTINCT** to calculate the number of unique days each customer visited the restaurant.
+- Group the records by `customer_id` to evaluate visits per individual customer.
+- Use **COUNT DISTINCT** to calculate the total number of unique visit days per customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -53,7 +55,7 @@ WITH ranked_sales AS (
 		m.product_name,
 		DENSE_RANK() OVER (
 			PARTITION BY s.customer_id
-			ORDER BY s.order_date ASC
+			ORDER BY s.order_date
 		) AS rank
 	FROM sales s
 	INNER JOIN menu m
@@ -68,7 +70,7 @@ WHERE rank = 1;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`ranked_sales`) that joins the `sales` and `menu` tables.
+- Define a Common Table Expression (`ranked_sales`) that joins the `sales` and `menu` tables on `product_id`.
 - Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` ascending to chronologically sequence each customer's purchases.
 - Query the CTE to isolate the absolute earliest purchase records by filtering for `rank = 1`.
 - Apply **SELECT DISTINCT** to present a clean, unique list of the products purchased on each customer's first day, accurately capturing any multi-item ties.
@@ -98,6 +100,7 @@ LIMIT 1;
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
+- Group the joined records by `product_name` to evaluate item popularity across all customer purchases.
 - Apply the **COUNT()** aggregate function to `product` on the `sales` table to add the total times all customers have purchased the item.
 - Order the final output in descending sequence by `times_purchased`.
 - USE **LIMIT 1** to show the most purchased item.
@@ -133,9 +136,10 @@ WHERE rank = 1;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`ranked_items`) that joins the `sales` and `menu` tables, grouping by `customer_id` and `product_name` to calculate the purchase frequency (`order_count`) for each item per customer.
+- Define a Common Table Expression (`ranked_items`) that joins the `sales` and `menu` tables on `product_id`.
+- Group the joined records by `customer_id` and `product_name` to calculate the purchase frequency (`order_count`) for each item per customer.
 - Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by **COUNT(s.product_id)** descending to rank each customer's items from most to least purchased.
-- Apply a **WHERE** clause (`rank = 1L`) to isolate and return the top-performing items for each customer.
+- Apply a **WHERE** clause (`rank = 1`) to isolate and return the top-performing items for each customer.
 
 #### Answer:
 | customer_id | product_name | order_count |
@@ -174,10 +178,11 @@ WHERE rank = 1;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`ranked_sales`) that joins `sales`, `menu`, and `members`, filtering for transactions occurring on or after the join date (`s.order_date >= mem.join_date`).
-- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` ascending to chronologically sequence post-membership purchases.
-- Use **SELECT DISTINCT** to ensure unique product records per customer and order.
-- Apply a **WHERE** clause (`rank = 1`) to capture the absolute earliest item(s) bought after the membership start date.
+- Define a Common Table Expression (`ranked_sales`) that joins on `product_id` between `sales` and `menu`, and on `customer_id` between `sales` and `members`.
+- Apply a **WHERE** clause (`s.order_date >= mem.join_date`) to isolate transactions occurring on or after each customer's membership join date.
+- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` ascending to rank post-membership purchases chronologically in ascending order.
+- Apply a **WHERE** clause (`rank = 1`) to isolate the absolute earliest item(s) purchased after joining as a member.
+- Use **SELECT DISTINCT** to deduplicate product names per customer in the event multiple identical items were purchased during their first post-membership transaction.
 
 #### Answer:
 | customer_id | product_name |
@@ -213,10 +218,10 @@ WHERE rank = 1;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`ranked_sales`) that joins `sales`, `menu`, and `members`.
+- Define a Common Table Expression (`ranked_sales`) that on `product_id` between `sales` and `menu`, and on `customer_id` between `sales` and `members`.
 - Apply a **WHERE** clause (`s.order_date < mem.join_date`) to include transactions occurring before the join date.
 - Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` descending to chronologically sequence post-membership purchases.
-- Query the CTE to capture the absolute earliest item(s) bought after the membership start date by filtering for `rank = 1`.
+- Apply a **WHERE** clause (`rank = 1`) to isolate the last item(s) purchased by each customer just before becoming a member.
 
 #### Answer:
 | customer_id | product_name |
@@ -247,9 +252,9 @@ ORDER BY s.customer_id ASC;
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
 - Use an **INNER JOIN** on `customer_id` to connect the `sales` and `members` tables,.
 - Apply a **WHERE** clause (`s.order_date < mem.join_date`) to include transactions occurring before the join date.
+- Group the filtered records by `customer_id` to aggregate metrics at the individual customer grain.
 - Apply the **COUNT()** aggregate function to `product_name` on the `menu` table to add the total volume of pre-membership items.
 - Apply **SUM()** aggregate function to `price` on the `menu` table to ad cumulative spending.
-- Group the results by `customer_id` to isolate the unique individual customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -272,6 +277,7 @@ ORDER BY s.customer_id;
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
+- Group the filtered records by `customer_id` to aggregate point metrics at the individual customer grain.
 - Apply a **CASE** statement inside the **SUM()** function to evaluate each row—multiplying the price by 20 for sushi and 10 for all other items.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
@@ -316,8 +322,9 @@ ORDER BY s.customer_id;
 - Define a Common Table Expression (`dates`) to compute each customer's 7-day promotional window (`end_week`) and month-end cutoff (`end_month`) using **DATE_TRUNC** and interval arithmetic.
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
 - Use an **INNER JOIN** on `customer_id` to connect the `sales` table and `dates` CTE.
-- Apply a **CASE** statement inside the **SUM()** function to evaluate each row—multiplying the price by 20 for sushi and 10 for all other items.
 - Apply a **WHERE** clause (`s.order_date <= d.end_month`) to include transactions occurring before the end of the month.
+- Group the filtered records by `customer_id` to aggregate point metrics at the individual customer grain.
+- Apply a **CASE** statement inside the **SUM()** function to evaluate each row—multiplying the price by 20 for sushi and 10 for all other items.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -353,7 +360,7 @@ ORDER BY s.customer_id, s.order_date, m.product_name
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
 - Use a **LEFT JOIN** on `customer_id` to connect the `sales` and `members` tables.
-- Apply a **CASE** statement to check if the order was made whilst the customer was a member (`Y`) or not (`N`).
+- Apply a **CASE** statement to evaluate membership status per order.
 
 #### Answer:
 | customer_id | order_date | product_name | price | member |
@@ -411,8 +418,11 @@ ORDER BY customer_id, order_date, product_name;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`customers`) using the exact same query as the previous exercise.
-- Apply the **RANK() OVER()** window function partitioned by `customer_id` and ordered by `order_date` to rank each customer's order since they became a member
+- Define a Common Table Expression (`customers`) to process the `sales` table.
+- Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
+- Use a **LEFT JOIN** on `customer_id` to connect the `sales` and `members` tables.
+- Apply a **CASE** statement within the CTE to evaluate membership status per order.
+- Apply conditional logic combining a **CASE** statement with the window function **RANK() OVER()** to chronologically rank post-membership purchases per member while assigning `NULL` to non-member orders.
 - (Optional) Order the final dataset in ascending sequence by `customer_id`, `order_date`, and `product_name` for structured presentation.
 
 #### Answer:

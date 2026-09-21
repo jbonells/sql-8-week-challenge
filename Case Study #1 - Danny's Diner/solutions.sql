@@ -10,7 +10,7 @@ FROM sales s
 INNER JOIN menu m
 	ON s.product_id = m.product_id
 GROUP BY s.customer_id
-ORDER BY s.customer_id ASC;
+ORDER BY s.customer_id;
 
 -- 2. How many days has each customer visited the restaurant?
 SELECT
@@ -18,7 +18,7 @@ SELECT
 	COUNT(DISTINCT order_date) AS total_visits
 FROM sales
 GROUP BY customer_id
-ORDER BY customer_id ASC;
+ORDER BY customer_id;
 
 -- 3. What was the first item from the menu purchased by each customer?
 WITH ranked_sales AS (
@@ -27,7 +27,7 @@ WITH ranked_sales AS (
 		m.product_name,
 		DENSE_RANK() OVER (
 			PARTITION BY s.customer_id
-			ORDER BY s.order_date ASC
+			ORDER BY s.order_date
 		) AS rank
 	FROM sales s
 	INNER JOIN menu m
