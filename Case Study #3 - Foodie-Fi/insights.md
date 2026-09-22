@@ -363,27 +363,22 @@ annual_plan_dates AS (
 ),
 customer_durations AS (
     SELECT
-		tpd.customer_id,
-		(apd.annual_date - tpd.trial_date) AS days_to_annual
+        WIDTH_BUCKET(apd.annual_date - tpd.trial_date, 1, 181, 6) AS bucket
 	FROM trial_plan_dates tpd
 	INNER JOIN annual_plan_dates apd
 		ON tpd.customer_id = apd.customer_id
 )
 
 SELECT
-	CASE 
-		WHEN days_to_annual BETWEEN 0 AND 30 THEN '0-30 days'
-		WHEN days_to_annual BETWEEN 31 AND 60 THEN '31-60 days'
-		WHEN days_to_annual BETWEEN 61 AND 90 THEN '61-90 days'
-		WHEN days_to_annual BETWEEN 91 AND 120 THEN '91-120 days'
-		WHEN days_to_annual BETWEEN 121 AND 150 THEN '121-150 days'
-		WHEN days_to_annual BETWEEN 151 AND 180 THEN '151-180 days'
-		ELSE '181+ days'
-	END AS period,
-	COUNT(customer_id) AS customers
+    CASE
+        WHEN bucket = 1 THEN '0-30 days'
+		WHEN bucket <= 6 THEN (bucket - 1) * 30 + 1 || '-' || bucket * 30 || ' days'
+        ELSE '181+ days'
+    END AS period,
+    COUNT(*) AS customers
 FROM customer_durations
-GROUP BY period
-ORDER BY MIN(days_to_annual);
+GROUP BY bucket
+ORDER BY bucket;
 ````
 
 #### Steps:
@@ -391,22 +386,23 @@ ORDER BY MIN(days_to_annual);
 - Apply a **WHERE** clause (`plan_id = 0`) to extract each customer's trial start date as `trial_date`.
 - Define a Common Table Expression (`annual_plan_dates`) to process the `subscriptions` table.
 - Apply a **WHERE** clause (`plan_id = 3`) to extract each customer's annual plan start date as `annual_date`.
-- Define a Common Table Expression (`customer_durations`) that joins the `trial_plan_dates` and `annual_plan_dates` CTEs on `customer_id` to calculate the difference between dates as `days_to_annual`.
-- Apply a **CASE** statement in the main query to segment `days_to_annual` into discrete 30-day duration brackets, aliasing the classification as `period`.
-- Group the records by `period` and apply **COUNT** to aggregate the total volume of converted customers within each duration bracket.
-- Order the results by `MIN(days_to_annual)` to ensure the duration brackets display in logical chronological sequence rather than default alphabetical order.
+- Define a Common Table Expression (`customer_durations`) that joins the `trial_plan_dates` and `annual_plan_dates` CTEs on `customer_id`.
+- Use **WIDTH_BUCKET()** on the date difference across the range 1 to 181 into 6 equal intervals to assign each conversion to a numeric `bucket`.
+- Apply a **CASE** statement in the main query to to dynamically map bucket numbers to formatted duration strings.
+- Group the records by `bucket` and apply **COUNT** to aggregate the total volume of converted customers within each duration bracket.
+- Order the final output sequentially by `bucket` to present the duration brackets in logical chronological sequence.
 
 #### Answer:
 
-| period       | customers_count |
-| -------------| --------------- |
-| 0-30 days    | 49              |
-| 31-60 days   | 24              |
-| 61-90 days   | 34              |
-| 91-120 days  | 35              |
-| 121-150 days | 42              |
-| 151-180 days | 36              |
-| 181+ days    | 38              |
+| period       | customers |
+| -------------| --------- |
+| 0-30 days    | 49        |
+| 31-60 days   | 24        |
+| 61-90 days   | 34        |
+| 91-120 days  | 35        |
+| 121-150 days | 42        |
+| 151-180 days | 36        |
+| 181+ days    | 38        |
 
 ### 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
 ````sql

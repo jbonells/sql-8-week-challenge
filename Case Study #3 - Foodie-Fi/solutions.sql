@@ -174,27 +174,22 @@ annual_plan_dates AS (
 ),
 customer_durations AS (
     SELECT
-		tpd.customer_id,
-		(apd.annual_date - tpd.trial_date) AS days_to_annual
+        WIDTH_BUCKET(apd.annual_date - tpd.trial_date, 1, 181, 6) AS bucket
 	FROM trial_plan_dates tpd
 	INNER JOIN annual_plan_dates apd
 		ON tpd.customer_id = apd.customer_id
 )
 
 SELECT
-	CASE 
-		WHEN days_to_annual BETWEEN 0 AND 30 THEN '0-30 days'
-		WHEN days_to_annual BETWEEN 31 AND 60 THEN '31-60 days'
-		WHEN days_to_annual BETWEEN 61 AND 90 THEN '61-90 days'
-		WHEN days_to_annual BETWEEN 91 AND 120 THEN '91-120 days'
-		WHEN days_to_annual BETWEEN 121 AND 150 THEN '121-150 days'
-		WHEN days_to_annual BETWEEN 151 AND 180 THEN '151-180 days'
-		ELSE '181+ days'
-	END AS period,
-	COUNT(customer_id) AS customers
+    CASE
+        WHEN bucket = 1 THEN '0-30 days'
+		WHEN bucket <= 6 THEN (bucket - 1) * 30 + 1 || '-' || bucket * 30 || ' days'
+        ELSE '181+ days'
+    END AS period,
+    COUNT(*) AS customers
 FROM customer_durations
-GROUP BY period
-ORDER BY MIN(days_to_annual);
+GROUP BY bucket
+ORDER BY bucket;
 
 -- 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
 WITH customer_plans AS (
