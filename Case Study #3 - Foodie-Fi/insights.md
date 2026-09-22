@@ -537,7 +537,7 @@ ORDER BY customer_id, payment_date;
 | 19          | 2       | pro monthly   | 2020-07-29   | 19.90  | 2             |
 | 19          | 3       | pro annual    | 2020-08-29   | 199.00 | 3             |
 
-- This is the output using the following query to show the 8 customers provided in the sample.
+This is the output using the following query to show the 8 customers provided in the sample:
 ````sql
 SELECT * FROM payments
 WHERE customer_id IN (1,2,11,13,15,16,18,19)
