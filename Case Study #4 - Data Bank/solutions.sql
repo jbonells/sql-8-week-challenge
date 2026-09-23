@@ -206,7 +206,10 @@ full_calendar AS (
 		c.customer_id,
 		m.month
 	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
-	CROSS JOIN (SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month FROM customer_transactions) m
+	CROSS JOIN (
+		SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month
+		FROM customer_transactions
+	) m
 ),
 closing_balances AS (
 	SELECT
@@ -325,153 +328,105 @@ ORDER BY o1.month;
 -- D. Extra Challenge
 
 -- Part 1: Simple Interest (Non-Compounding)
-WITH RECURSIVE customer_date_grid AS (
-    SELECT
+WITH daily_activity AS (
+	SELECT
+		customer_id,
+		txn_date AS date,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+    FROM customer_transactions
+    GROUP BY customer_id, date
+),
+daily_calendar AS (
+	SELECT
 		c.customer_id,
 		d.date
 	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
 	CROSS JOIN (
-      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
-        FROM customer_transactions
-    ) d
-),
-daily_net AS (
-    SELECT
-        customer_id,
-        txn_date AS date,
-		SUM(
-			CASE
-				WHEN txn_type = 'deposit' THEN txn_amount
-				ELSE -txn_amount
-			END
-		) AS net_amount
-    FROM customer_transactions
-	GROUP BY customer_id, date
-),
-daily_grid AS (
-    SELECT
-		g.customer_id,
-		g.date,
-		COALESCE(dn.net_amount, 0) AS net_amount
-    FROM customer_date_grid g
-    LEFT JOIN daily_net dn
-		ON g.customer_id = dn.customer_id
-		AND g.date = dn.date
+		SELECT GENERATE_SERIES(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::DATE AS date
+		FROM customer_transactions
+	) d
 ),
 daily_balance AS (
-    SELECT
-	customer_id,
-	date,
-	ROUND(net_amount::NUMERIC, 2) AS balance
-    FROM daily_grid
-    WHERE date = (SELECT MIN(date) FROM daily_grid)
-
-    UNION ALL
-
-    SELECT
-		g.customer_id,
-		g.date,
-		ROUND(GREATEST(db.balance, 0) * (1 + 0.06/365.0) + g.net_amount, 2) AS balance
-    FROM daily_grid g
-    INNER JOIN daily_balance db
-		ON g.customer_id = db.customer_id
-		AND g.date = db.date + INTERVAL '1 day'
-),
-monthly_endpoints AS (
-    SELECT DISTINCT
-        customer_id,
-        EXTRACT(MONTH FROM date) AS month,
-        LAST_VALUE(balance) OVER (
-            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
-            ORDER BY date
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-        ) AS end_of_month_balance
-    FROM daily_balance
+	SELECT
+		dc.customer_id,
+		dc.date,
+		SUM(COALESCE(da.net_change, 0)) OVER (
+			PARTITION BY dc.customer_id ORDER BY dc.date
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS balance
+	FROM daily_calendar dc
+	LEFT JOIN daily_activity da
+		ON dc.customer_id = da.customer_id
+		AND dc.date = da.date
 )
 
 SELECT
-    month,
-    TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
-FROM monthly_endpoints
+    EXTRACT(MONTH FROM date) AS month,
+    ROUND(SUM(GREATEST(balance, 0) * 0.06 / 365.0)) AS interest_data_noncompounding
+FROM daily_balance
 GROUP BY month
 ORDER BY month;
 
 --Part 2: Daily Compounding Interest
-WITH customer_date_grid AS (
-    SELECT
+WITH RECURSIVE daily_activity AS (
+	SELECT
+		customer_id,
+		txn_date AS date,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+    FROM customer_transactions
+    GROUP BY customer_id, date
+),
+daily_calendar AS (
+	SELECT
 		c.customer_id,
 		d.date
 	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
 	CROSS JOIN (
-      	SELECT generate_series(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::date AS date
-        FROM customer_transactions
-    ) d
+		SELECT GENERATE_SERIES(MIN(txn_date), MAX(txn_date), INTERVAL '1 day')::DATE AS date
+		FROM customer_transactions
+	) d
 ),
-daily_net AS (
+daily_balance AS (
+	SELECT
+		dc.customer_id,
+		dc.date,
+		SUM(COALESCE(da.net_change, 0)) OVER (
+			PARTITION BY dc.customer_id ORDER BY dc.date
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS balance
+	FROM daily_calendar dc
+	LEFT JOIN daily_activity da
+		ON dc.customer_id = da.customer_id
+		AND dc.date = da.date
+),
+daily_interest AS (
     SELECT
         customer_id,
-        txn_date AS date,
-		SUM(
-			CASE
-				WHEN txn_type = 'deposit' THEN txn_amount
-				ELSE -txn_amount
-			END
-		) AS net_amount
-    FROM customer_transactions
-	GROUP BY customer_id, date
-),
-daily_grid AS (
+        date,
+        ROUND(balance::NUMERIC, 2) AS balance,
+        0::NUMERIC AS interest_earned
+    FROM daily_balance
+    WHERE date = (SELECT MIN(date) FROM daily_balance)
+
+    UNION ALL
+
     SELECT
-		g.customer_id,
-		g.date,
-		COALESCE(dn.net_amount, 0) AS net_amount
-    FROM customer_date_grid g
-    LEFT JOIN daily_net dn
-		ON g.customer_id = dn.customer_id
-		AND g.date = dn.date
-),
-daily_running_balance AS (
-    SELECT
-        customer_id,
-		date,
-        SUM(net_amount) OVER (
-            PARTITION BY customer_id ORDER BY date
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        ) AS raw_balance
-    FROM daily_grid
-),
-daily_simple_interest AS (
-    SELECT
-        customer_id,
-		date,
-		raw_balance,
-        GREATEST(raw_balance, 0) * (0.06/365.0) AS daily_interest
-    FROM daily_running_balance
-),
-daily_balance_simple AS (
-    SELECT
-        customer_id,
-		date,
-        raw_balance + SUM(daily_interest) OVER (
-            PARTITION BY customer_id ORDER BY date
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        ) AS balance_with_simple_interest
-    FROM daily_simple_interest
-),
-monthly_endpoints AS (
-    SELECT DISTINCT
-        EXTRACT(MONTH FROM date) AS month,
-        LAST_VALUE(balance_with_simple_interest) OVER (
-            PARTITION BY customer_id, EXTRACT(MONTH FROM date)
-            ORDER BY date
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-        ) AS end_of_month_balance
-    FROM daily_balance_simple
+        dc.customer_id,
+        dc.date,
+        ROUND(GREATEST(di.balance, 0) * (1 + 0.06 / 365.0) + COALESCE(da.net_change, 0), 2) AS balance,
+        ROUND(GREATEST(di.balance, 0) * 0.06 / 365.0, 2) AS interest_earned
+    FROM daily_calendar dc
+    LEFT JOIN daily_activity da
+        ON dc.customer_id = da.customer_id
+		AND dc.date = da.date
+    INNER JOIN daily_interest di
+        ON dc.customer_id = di.customer_id
+		AND dc.date = di.date + INTERVAL '1 day'
 )
 
 SELECT
-    month,
-	TO_CHAR(SUM(GREATEST(end_of_month_balance, 0)), 'FM999,999,999.99') AS data_required
-FROM monthly_endpoints
+    EXTRACT(MONTH FROM date) AS month,
+    ROUND(SUM(interest_earned)) AS interest_data_compounding
+FROM daily_interest
 GROUP BY month
 ORDER BY month;
