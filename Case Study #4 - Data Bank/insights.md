@@ -8,7 +8,7 @@ FROM customer_nodes;
 ````
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique nodes.
+- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and calculate the total number of unique nodes across the system.
 - (Optional) Assign the alias `unique_nodes` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -30,8 +30,9 @@ ORDER BY r.region_name;
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique nodes.
-- (Optional) Assign the alias `unique_nodes` to the resulting column for clear presentation in the final output report.
+- Group the joined records by `region_name` to aggregate node metrics per region.
+- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the volume of unique nodes within each region.
+- (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
 #### Answer:
 | region_name | unique_nodes |
@@ -41,8 +42,6 @@ ORDER BY r.region_name;
 | Asia        | 5            |
 | Australia   | 5            |
 | Europe      | 5            |
-
-- There are 5 unique nodes on each region.
 
 ### 3. How many customers are allocated to each region?
 ````sql
@@ -58,8 +57,9 @@ ORDER BY r.region_name;
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique customers.
-- (Optional) Assign the alias `nodes` to the resulting column for clear presentation in the final output report.
+- Group the joined records by `region_name` to aggregate customer metrics per region.
+- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the volume of unique customers within each region.
+- (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
 #### Answer:
 | region_name | customers |
@@ -70,27 +70,24 @@ ORDER BY r.region_name;
 | Australia   | 110       |
 | Europe      | 88        |
 
-- There are 500 customers distributed amongst the 5 regions as seen in the table above.
-
 ### 4. How many days on average are customers reallocated to a different node?
 ````sql
 SELECT 
     ROUND(AVG(end_date - start_date), 2) AS avg_node_reallocation_days
-FROM data_bank.customer_nodes
-WHERE end_date != '9999-12-31';
+FROM customer_nodes
+WHERE end_date <> '9999-12-31';
 ````
 
 #### Steps:
-- Apply the **AVG** aggregate function to the difference between dates to get the number of days spent in each individual node allocation.
-- Wrap the result in **ROUND** to present a clean summary rounded to two decimal places.
-- Apply a filter condition in the **WHERE** clause (`end_date != '9999-12-31'`) to exclude open allocations that haven't ended yet, preventing extreme date outliers from distorting the average.
+- Apply a **WHERE** clause (`end_date <> '9999-12-31'`) to isolate completed node reallocations, excluding ongoing placeholder dates that would distort the average.
+- Subtract `start_date` from `end_date` to calculate the duration in days spent at each assigned node.
+- Apply the **AVG** aggregate function to calculate the mean reallocation timeframe.
+- Wrap the calculation in **ROUND** to format the final average duration to 2 decimal places.
 
 #### Answer:
 | avg_node_reallocation_days |
 | -------------------------- |
 | 14.63                      |
-
-- On average, customers reallocated to a different node every 14.63 days.
 
 ### 5. What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
 ````sql
@@ -102,15 +99,16 @@ SELECT
 FROM customer_nodes cn
 INNER JOIN regions r
 	ON cn.region_id = r.region_id
-WHERE cn.end_date != '9999-12-31'
+WHERE cn.end_date <> '9999-12-31'
 GROUP BY r.region_name
 ORDER BY r.region_name;
 ````
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
-- Use **PERCENTILE_CONT(fraction) WITHIN GROUP (ORDER BY cn.end_date - cn.start_date)** to compute the 50th percentile (median), 80th percentile, and 95th percentile of reallocation days for each region group.
-- Apply a filter condition in the **WHERE** clause (`end_date != '9999-12-31'`) to exclude open allocations that haven't ended yet, preventing extreme date outliers from distorting the average.
+- Apply a **WHERE** clause (`end_date <> '9999-12-31'`) to isolate completed node reallocations, excluding ongoing placeholder dates that would distort the average.
+- Use **PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...)** to calculate the 50th percentile (median), 80th percentile, and 95th percentile of node reallocation durations in days for each region.
+- (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
 #### Answer:
 | region_name | median | percentile_80 | percentile_95 |
@@ -121,10 +119,6 @@ ORDER BY r.region_name;
 | Australia   | 15     | 23            | 28            |
 | Europe      | 15     | 24            | 28            |
 
-- Exactly 50% of customer node allocations in each region lasted 15 days or fewer, and 50% lasted longer.
-- 80% of node allocations in a region were completed within 23 to 24 days, with only 20% exceeding this duration.
-- 95% of all allocations lasted 28 days or fewer, isolating the top 5% longest allocations in the system.
-
 
 ## B. Customer Transactions
 
@@ -132,48 +126,52 @@ ORDER BY r.region_name;
 ````sql
 SELECT 
     txn_type,
-    COUNT(DISTINCT customer_id) AS unique_customers,
-    TO_CHAR(SUM(txn_amount), 'FM999,999,999') AS total_amount
+    COUNT(*) AS transaction_count,
+    SUM(txn_amount) AS total_amount
 FROM customer_transactions
 GROUP BY txn_type
 ORDER BY txn_type;
 ````
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique customers.
-- Use the **SUM** aggregate function counting all individual transaction values for each specific transaction type group.
-- (Optional) Use **TO_CHAR()** to convert the aggregated sum into a formatted text string.
+- Group the records by `txn_type` to aggregate transaction activity by type.
+- Apply the **COUNT** aggregate function to calculate the total volume of transactions per type.
+- Use the **SUM** aggregate function to calculate the cumulative monetary value for each transaction type.
+- (Optional) Order the final dataset in ascending sequence by `txn_type` for structured presentation.
 
 #### Answer:
-| txn_type   | unique_customers | total_amount |
-| ---------- | ---------------- | ------------ |
-| deposit    | 500              | 1,359,168    |
-| purchase   | 448              | 806,537      |
-| withdrawal | 439              | 793,003      |
+| txn_type   | transaction_count | total_amount |
+| ---------- | ----------------- | ------------ |
+| deposit    | 2671              | 1359168      |
+| purchase   | 1617              | 806537       |
+| withdrawal | 1580              | 793003       |
 
 ### 2. What is the average total historical deposit counts and amounts for all customers?
 ````sql
-WITH customer_deposit_summary AS (
+WITH customer_deposits AS (
     SELECT
-        COUNT(txn_amount) AS deposit_count,
-        SUM(txn_amount) AS total_deposit_amount
+        customer_id,
+        COUNT(*) AS deposit_count,
+        SUM(txn_amount) AS deposit_amount
     FROM customer_transactions
     WHERE txn_type = 'deposit'
     GROUP BY customer_id
 )
-SELECT 
+
+SELECT
     ROUND(AVG(deposit_count), 2) AS avg_deposit_count,
-    ROUND(AVG(total_deposit_amount), 2) AS avg_deposit_amount
-FROM customer_deposit_summary;
+    ROUND(AVG(deposit_amount), 2) AS avg_deposit_amount
+FROM customer_deposits;
 ````
 
 #### Steps:
 - Define a Common Table Expression (`customer_deposit_summary`) querying the `customer_transactions` table.
-- Apply the **COUNT** aggregate function to tally each customer's total number of deposit transactions.
-- Use the **SUM** aggregate function to calculate each customer's total historical deposited amount.
-- Apply a filter condition in the **WHERE** clause (`txn_type = 'deposit'`) to isolate deposit records.
-- Apply the **AVG** aggregate function to both `deposit_count` and `total_deposit_amount` to compute the overall averages across all customers.
-- Wrap the calculations with **ROUND** to present clean metrics rounded to two decimal places.
+- Apply a **WHERE** clause (`txn_type = 'deposit'`) to isolate deposit records.
+- Group the records by `customer_id` to aggregate deposit activity at the customer level.
+- Apply the **COUNT** aggregate function to calculate each customer's total deposit frequency.
+- Use the **SUM** aggregate function to calculate each customer's cumulative deposited value.
+- Apply the **AVG** aggregate function across both aggregated fields in the main query to calculate the overall mean deposit count and mean deposit amount per customer.
+- Wrap both calculations in **ROUND** to format the final average metrics to 2 decimal places.
 
 #### Answer:
 | avg_deposit_count | avg_deposit_amount |
@@ -182,173 +180,181 @@ FROM customer_deposit_summary;
 
 ### 3. For each month - how many Data Bank customers make more than 1 deposit and either 1 purchase or 1 withdrawal in a single month?
 ````sql
-WITH customer_monthly_activity AS(
+WITH monthly_activity AS(
 	SELECT
 		customer_id,
-		EXTRACT(MONTH FROM txn_date) AS month_number,
-		TO_CHAR(txn_date, 'Month') AS month,
-		COUNT(CASE WHEN txn_type = 'deposit' THEN 1 END) AS deposit_count,
-		COUNT(CASE WHEN txn_type = 'purchase' THEN 1 END) AS purchase_count,
-		COUNT(CASE WHEN txn_type = 'withdrawal' THEN 1 END) AS withdrawal_count
+		EXTRACT(MONTH FROM txn_date) AS month,
+		COUNT(*) FILTER (WHERE txn_type = 'deposit') AS deposit_count,
+        COUNT(*) FILTER (WHERE txn_type = 'purchase') AS purchase_count,
+        COUNT(*) FILTER (WHERE txn_type = 'withdrawal') AS withdrawal_count
 	FROM customer_transactions
-	GROUP BY customer_id, month_number, month
+	GROUP BY customer_id, month
 )
 
 SELECT
 	month,
-    COUNT(customer_id) AS customers
-FROM customer_monthly_activity
+    COUNT(DISTINCT customer_id) AS customers
+FROM monthly_activity
 WHERE deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)
-GROUP BY month_number, month
-ORDER BY month_number;
-````
-
-#### Steps:
-- Define a Common Table Expression (`customer_monthly_activity`) querying the `customer_transactions` table.
-- Use **EXTRACT()** to retain a numeric month value for chronological sorting.
-- Use the **TO_CHART** function to pull the month component from the `txn_date` column, assigning the alias `month`.
-- Apply **COUNT** with a **CASE** statement for each transaction type (deposit, purchase, withdrawal) to compute separate event totals per customer for each month.
-- Apply a filter condition in the **WHERE** clause (`deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)`) to isolate customers meeting the active activity criteria.
-
-#### Answer:
-| month     | customers |
-| --------- | --------- |
-| January   | 168       |
-| February  | 181       |
-| March     | 192       |
-| April     | 70        |
-
-### 4. What is the closing balance for each customer at the end of the month?
-````sql
-WITH monthly_activity AS (
-    SELECT
-        customer_id,
-        EXTRACT(MONTH FROM txn_date) AS month_number,
-        SUM(CASE 
-            WHEN txn_type = 'deposit' THEN txn_amount 
-            ELSE -txn_amount 
-        END) AS net_change
-    FROM customer_transactions
-    GROUP BY customer_id, month_number
-),
-dense_calendar AS (
-    SELECT
-        c.customer_id,
-        m.month_number,
-  		TO_CHAR(TO_DATE(m.month_number::text, 'MM'), 'Month') AS month,
-        COALESCE(a.net_change, 0) AS monthly_change
-    FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
-    CROSS JOIN (SELECT DISTINCT EXTRACT(MONTH FROM txn_date) AS month_number FROM customer_transactions) m
-    LEFT JOIN monthly_activity a
-		ON c.customer_id = a.customer_id 
-		AND m.month_number = a.month_number
-)
-
-SELECT
-	customer_id,
-    month,
-	SUM(monthly_change) OVER (
-		PARTITION BY customer_id 
-		ORDER BY month_number
-	) AS closing_balance
-FROM dense_calendar
-ORDER BY customer_id, month_number;
+GROUP BY month
+ORDER BY month;
 ````
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
-- Use **EXTRACT()** to retain a numeric month value for chronological sorting.
-- Apply a **CASE** statement inside a **SUM** aggregate function to assign positive values to deposits and negative values to withdrawals/purchases, summing them into a single metric.
-- Define a Common Table Expression (`dense_calendar`) that take unique `customer_id` from a sub-query and **CROSS JOIN** them with unique numeric months from `customer_transactions` table.
-- Use a **LEFT JOIN** on `customer_id` and `month_number` to connect the `monthly_activity` CTE.
-- Wrap `net_change` in **COALESCE** to ensure inactive months return 0 instead of NULL.
-- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to calculate the total `monthly_change` for each customer and month.
+- Use **EXTRACT()** to derive the numeric month as `month`.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** grouped by `customer_id` and `month` to compute monthly transaction totals for deposits, purchases, and withdrawals per customer.
+- Apply a **WHERE** clause (`deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)`) in the main query to isolate customer months meeting the active engagement criteria.
+- Group the filtered records by `month` to aggregate activity metrics per calendar month.
+- Apply the **COUNT** aggregate function with **DISTINCT** to aggregate activity metrics per calendar month.
+- (Optional) Order the final dataset sequentially by `month` for structured presentation.
 
 #### Answer:
-| customer_id | month     | closing_balance |
-| ----------- | --------- | --------------- |
-| 1           | January   | 312             |
-| 1           | February  | 312             |
-| 1           | March     | -640            |
-| 1           | April     | -640            |
-| 2           | January   | 549             |
-| 2           | February  | 549             |
-| 2           | March     | 610             |
-| 2           | April     | 610             |
-| 3           | January   | 144             |
-| 3           | February  | -821            |
-| 3           | March     | -1222           |
-| 3           | April     | -729            |
+| month | customers |
+| ----- | --------- |
+| 1     | 168       |
+| 2     | 181       |
+| 3     | 192       |
+| 4     | 70        |
+
+### 4. What is the closing balance for each customer at the end of the month?
+````sql
+WITH monthly_activity AS (
+	SELECT
+		customer_id,
+		DATE_TRUNC('month', txn_date)::DATE AS month,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+	FROM customer_transactions
+	GROUP BY customer_id, month
+),
+full_calendar AS (
+	SELECT
+		c.customer_id,
+		m.month
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month FROM customer_transactions) m
+)
+
+SELECT
+	fc.customer_id,
+	EXTRACT(MONTH FROM fc.month) AS month,
+	SUM(COALESCE(ma.net_change, 0)) OVER (
+		PARTITION BY fc.customer_id ORDER BY fc.month
+		ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+	) AS closing_balance
+FROM full_calendar fc
+LEFT JOIN monthly_activity ma
+	ON ma.customer_id = fc.customer_id
+	AND ma.month = fc.month
+ORDER BY fc.customer_id, fc.month;
+````
+
+#### Steps:
+- Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
+- Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
+- Group records by `customer_id` and `month` to aggregate transaction activity per individual customer for each distinct calendar month.
+- Apply a **CASE** statement inside a **SUM** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Define a Common Table Expression (`full_calendar`) that take **DISTINCT** `customer_id` from a sub-query and **CROSS JOIN** them with unique numeric months from `customer_transactions` table.
+- Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
+- Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month.
+- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
+- (Optional) Order the final dataset in ascending sequence by `customer_id` and `month` for structured presentation.
+
+#### Answer:
+| customer_id | month | closing_balance |
+| ----------- | ------| --------------- |
+| 1           | 1     | 312             |
+| 1           | 2     | 312             |
+| 1           | 3     | -640            |
+| 1           | 4     | -640            |
+| 2           | 1     | 549             |
+| 2           | 2     | 549             |
+| 2           | 3     | 610             |
+| 2           | 4     | 610             |
+| 3           | 1     | 144             |
+| 3           | 2     | -821            |
+| 3           | 3     | -1222           |
+| 3           | 4     | -729            |
 
 - I am only showing the first 3 customers for reference.
 
 ### 5. What is the percentage of customers who increase their closing balance by more than 5%?
 ````sql
 WITH monthly_activity AS (
-    SELECT
-        customer_id,
-        EXTRACT(MONTH FROM txn_date) AS month,
-        SUM(CASE 
-            WHEN txn_type = 'deposit' THEN txn_amount 
-            ELSE -txn_amount 
-        END) AS net_change
-    FROM customer_transactions
-    GROUP BY customer_id, month
+	SELECT
+		customer_id,
+		DATE_TRUNC('month', txn_date)::DATE AS month,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+	FROM customer_transactions
+	GROUP BY customer_id, month
 ),
-dense_calendar AS (
-    SELECT
-        c.customer_id,
-        m.month,
-  		COALESCE(a.net_change, 0) AS monthly_change
-    FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
-    CROSS JOIN (SELECT DISTINCT EXTRACT(MONTH FROM txn_date) AS month FROM customer_transactions) m
-    LEFT JOIN monthly_activity a
-		ON c.customer_id = a.customer_id 
-		AND m.month = a.month
+full_calendar AS (
+	SELECT
+		c.customer_id,
+		m.month
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month FROM customer_transactions) m
 ),
 closing_balances AS (
 	SELECT
-		customer_id,
-  		month,
-		SUM(monthly_change) OVER (
-			PARTITION BY customer_id 
-			ORDER BY month
+		fc.customer_id,
+		fc.month,
+		SUM(COALESCE(ma.net_change, 0)) OVER (
+			PARTITION BY fc.customer_id ORDER BY fc.month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		) AS closing_balance
-	FROM dense_calendar
+	FROM full_calendar fc
+	LEFT JOIN monthly_activity ma
+		ON ma.customer_id = fc.customer_id
+		AND ma.month = fc.month
 ),
 balance_comparison AS (
-	SELECT
+	SELECT DISTINCT
 		customer_id,
-		MAX(CASE WHEN month = 1 THEN closing_balance END) AS first_balance,
-		MAX(CASE WHEN month = 4 THEN closing_balance END) AS last_balance    
+		FIRST_VALUE(closing_balance) OVER (
+			PARTITION BY customer_id ORDER BY month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+		) AS first_balance,
+		LAST_VALUE(closing_balance) OVER (
+			PARTITION BY customer_id ORDER BY month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+	) AS last_balance
 	FROM closing_balances
-	GROUP BY customer_id
+),
+customer_change AS (
+SELECT
+	customer_id,
+    ROUND(100.0 * (last_balance - first_balance) / ABS(first_balance), 2) AS pct_change
+FROM balance_comparison
 )
 
-SELECT 
-    ROUND(
-        100.0 * SUM(CASE WHEN last_balance > first_balance * 1.05 THEN 1 ELSE 0 END) 
-        / COUNT(*),
-        2
-    ) AS pct_customers_over_5_percent
-FROM balance_comparison;
+SELECT
+    ROUND(100.0 * COUNT(*) FILTER (WHERE pct_change > 5) / COUNT(*), 2) AS pct_customers_over_5_percent
+FROM customer_change;
 ````
 
 #### Steps:
-- Define a Common Table Expression (`monthly_activity`) exactly like in the previous exercise.
-- Define a Common Table Expression (`dense_calendar`) exactly like in the previous exercise.
-- Define a Common Table Expression (`closing_balances`) using the outer **SELECT** from the previous exercise.
-- Define a Common Table Expression (`balance_comparison`) to pivot each customer's first (`month = 1`) and last (`month = 4`) closing balances using conditional aggregation.
-- Apply a **CASE** statement inside a **SUM** aggregate function to calculate the percentage of qualifying customers whose balance grew by more than 5%.
+- Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
+- Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
+- Group records by `customer_id` and `month` to aggregate transaction activity per individual customer for each distinct calendar month.
+- Apply a **CASE** statement inside a **SUM** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Define a Common Table Expression (`full_calendar`) that take **DISTINCT** `customer_id` from a sub-query and **CROSS JOIN** them with unique numeric months from `customer_transactions` table.
+- Define a Common Table Expression (`closing_balances`) querying the `full_calendar` CTE.
+- Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
+- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
+- Define a Common Table Expression (`balance_comparison`) querying the `closing_balances` CTE using **SELECT DISTINCT** to extract one record per customer.
+- Apply **FIRST_VALUE()** and **LAST_VALUE()** window functions partitioned by `customer_id` and ordered by `month` to capture each customer's initial and final balance respectively.
+- Define a Common Table Expression (`customer_change`) querying the `balance_comparison` CTE to calculate each customer's percentage growth.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate the proportion of qualifying customers.
 - Use **COUNT()** to divide by the total customer count.
-- Wrap the calculations with **ROUND** to present clean metrics rounded to two decimal places.
+- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | pct_customers_over_5_percent |
 | ---------------------------- |
-| 34.00                        |
-
-- Amongst all the customers, 34% experienced an increase of their closing balance by more than 5%.
+| 33.20                        |
 
 
 ## C. Data Allocation Challenge

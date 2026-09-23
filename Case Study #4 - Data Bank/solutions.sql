@@ -32,8 +32,8 @@ ORDER BY r.region_name;
 -- 4. How many days on average are customers reallocated to a different node?
 SELECT 
     ROUND(AVG(end_date - start_date), 2) AS avg_node_reallocation_days
-FROM data_bank.customer_nodes
-WHERE end_date != '9999-12-31';
+FROM customer_nodes
+WHERE end_date <> '9999-12-31';
 
 -- 5. What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
 SELECT 
@@ -44,7 +44,7 @@ SELECT
 FROM customer_nodes cn
 INNER JOIN regions r
 	ON cn.region_id = r.region_id
-WHERE cn.end_date != '9999-12-31'
+WHERE cn.end_date <> '9999-12-31'
 GROUP BY r.region_name
 ORDER BY r.region_name;
 
@@ -54,131 +54,130 @@ ORDER BY r.region_name;
 -- 1. What is the unique count and total amount for each transaction type?
 SELECT 
     txn_type,
-    COUNT(DISTINCT customer_id) AS unique_customers,
-    TO_CHAR(SUM(txn_amount), 'FM999,999,999') AS total_amount
+    COUNT(*) AS transaction_count,
+    SUM(txn_amount) AS total_amount
 FROM customer_transactions
 GROUP BY txn_type
 ORDER BY txn_type;
 
 -- 2. What is the average total historical deposit counts and amounts for all customers?
-WITH customer_deposit_summary AS (
+WITH customer_deposits AS (
     SELECT
-        COUNT(txn_amount) AS deposit_count,
-        SUM(txn_amount) AS total_deposit_amount
+        customer_id,
+        COUNT(*) AS deposit_count,
+        SUM(txn_amount) AS deposit_amount
     FROM customer_transactions
     WHERE txn_type = 'deposit'
     GROUP BY customer_id
 )
-SELECT 
+
+SELECT
     ROUND(AVG(deposit_count), 2) AS avg_deposit_count,
-    ROUND(AVG(total_deposit_amount), 2) AS avg_deposit_amount
-FROM customer_deposit_summary;
+    ROUND(AVG(deposit_amount), 2) AS avg_deposit_amount
+FROM customer_deposits;
 
 -- 3. For each month - how many Data Bank customers make more than 1 deposit and either 1 purchase or 1 withdrawal in a single month?
-WITH customer_monthly_activity AS(
+WITH monthly_activity AS(
 	SELECT
 		customer_id,
-		EXTRACT(MONTH FROM txn_date) AS month_number,
-		TO_CHAR(txn_date, 'Month') AS month,
-		COUNT(CASE WHEN txn_type = 'deposit' THEN 1 END) AS deposit_count,
-		COUNT(CASE WHEN txn_type = 'purchase' THEN 1 END) AS purchase_count,
-		COUNT(CASE WHEN txn_type = 'withdrawal' THEN 1 END) AS withdrawal_count
+		EXTRACT(MONTH FROM txn_date) AS month,
+		COUNT(*) FILTER (WHERE txn_type = 'deposit') AS deposit_count,
+        COUNT(*) FILTER (WHERE txn_type = 'purchase') AS purchase_count,
+        COUNT(*) FILTER (WHERE txn_type = 'withdrawal') AS withdrawal_count
 	FROM customer_transactions
-	GROUP BY customer_id, month_number, month
+	GROUP BY customer_id, month
 )
 
 SELECT
 	month,
-    COUNT(customer_id) AS customers
-FROM customer_monthly_activity
+    COUNT(DISTINCT customer_id) AS customers
+FROM monthly_activity
 WHERE deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)
-GROUP BY month_number, month
-ORDER BY month_number;
+GROUP BY month
+ORDER BY month;
 
 -- 4. What is the closing balance for each customer at the end of the month?
 WITH monthly_activity AS (
-    SELECT
-        customer_id,
-        EXTRACT(MONTH FROM txn_date) AS month_number,
-        SUM(CASE 
-            WHEN txn_type = 'deposit' THEN txn_amount 
-            ELSE -txn_amount 
-        END) AS net_change
-    FROM customer_transactions
-    GROUP BY customer_id, month_number
+	SELECT
+		customer_id,
+		DATE_TRUNC('month', txn_date)::DATE AS month,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+	FROM customer_transactions
+	GROUP BY customer_id, month
 ),
-dense_calendar AS (
-    SELECT
-        c.customer_id,
-        m.month_number,
-  		TO_CHAR(TO_DATE(m.month_number::text, 'MM'), 'Month') AS month,
-        COALESCE(a.net_change, 0) AS monthly_change
-    FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
-    CROSS JOIN (SELECT DISTINCT EXTRACT(MONTH FROM txn_date) AS month_number FROM customer_transactions) m
-    LEFT JOIN monthly_activity a
-		ON c.customer_id = a.customer_id 
-		AND m.month_number = a.month_number
+full_calendar AS (
+	SELECT
+		c.customer_id,
+		m.month
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month FROM customer_transactions) m
 )
 
 SELECT
-	customer_id,
-    month,
-	SUM(monthly_change) OVER (
-		PARTITION BY customer_id 
-		ORDER BY month_number
+	fc.customer_id,
+	EXTRACT(MONTH FROM fc.month) AS month,
+	SUM(COALESCE(ma.net_change, 0)) OVER (
+		PARTITION BY fc.customer_id ORDER BY fc.month
+		ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 	) AS closing_balance
-FROM dense_calendar
-ORDER BY customer_id, month_number;
+FROM full_calendar fc
+LEFT JOIN monthly_activity ma
+	ON ma.customer_id = fc.customer_id
+	AND ma.month = fc.month
+ORDER BY fc.customer_id, fc.month;
 
 -- 5. What is the percentage of customers who increase their closing balance by more than 5%?
 WITH monthly_activity AS (
-    SELECT
-        customer_id,
-        EXTRACT(MONTH FROM txn_date) AS month,
-        SUM(CASE 
-            WHEN txn_type = 'deposit' THEN txn_amount 
-            ELSE -txn_amount 
-        END) AS net_change
-    FROM customer_transactions
-    GROUP BY customer_id, month
+	SELECT
+		customer_id,
+		DATE_TRUNC('month', txn_date)::DATE AS month,
+		SUM(CASE WHEN txn_type = 'deposit' THEN txn_amount ELSE -txn_amount END) AS net_change
+	FROM customer_transactions
+	GROUP BY customer_id, month
 ),
-dense_calendar AS (
-    SELECT
-        c.customer_id,
-        m.month,
-  		COALESCE(a.net_change, 0) AS monthly_change
-    FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
-    CROSS JOIN (SELECT DISTINCT EXTRACT(MONTH FROM txn_date) AS month FROM customer_transactions) m
-    LEFT JOIN monthly_activity a
-		ON c.customer_id = a.customer_id 
-		AND m.month = a.month
+full_calendar AS (
+	SELECT
+		c.customer_id,
+		m.month
+	FROM (SELECT DISTINCT customer_id FROM customer_transactions) c
+	CROSS JOIN (SELECT DISTINCT DATE_TRUNC('month', txn_date)::DATE AS month FROM customer_transactions) m
 ),
 closing_balances AS (
 	SELECT
-		customer_id,
-  		month,
-		SUM(monthly_change) OVER (
-			PARTITION BY customer_id 
-			ORDER BY month
+		fc.customer_id,
+		fc.month,
+		SUM(COALESCE(ma.net_change, 0)) OVER (
+			PARTITION BY fc.customer_id ORDER BY fc.month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		) AS closing_balance
-	FROM dense_calendar
+	FROM full_calendar fc
+	LEFT JOIN monthly_activity ma
+		ON ma.customer_id = fc.customer_id
+		AND ma.month = fc.month
 ),
 balance_comparison AS (
-	SELECT
+	SELECT DISTINCT
 		customer_id,
-		MAX(CASE WHEN month = 1 THEN closing_balance END) AS first_balance,
-		MAX(CASE WHEN month = 4 THEN closing_balance END) AS last_balance    
+		FIRST_VALUE(closing_balance) OVER (
+			PARTITION BY customer_id ORDER BY month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+		) AS first_balance,
+		LAST_VALUE(closing_balance) OVER (
+			PARTITION BY customer_id ORDER BY month
+			ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+	) AS last_balance
 	FROM closing_balances
-	GROUP BY customer_id
+),
+customer_change AS (
+SELECT
+	customer_id,
+    ROUND(100.0 * (last_balance - first_balance) / ABS(first_balance), 2) AS pct_change
+FROM balance_comparison
 )
 
-SELECT 
-    ROUND(
-        100.0 * SUM(CASE WHEN last_balance > first_balance * 1.05 THEN 1 ELSE 0 END) 
-        / COUNT(*),
-        2
-    ) AS pct_customers_over_5_percent
-FROM balance_comparison;
+SELECT
+    ROUND(100.0 * COUNT(*) FILTER (WHERE pct_change > 5) / COUNT(*), 2) AS pct_customers_over_5_percent
+FROM customer_change;
 
 
 -- C. Data Allocation Challenge
