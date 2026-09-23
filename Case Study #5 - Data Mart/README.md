@@ -1,4 +1,4 @@
-# 🛍 Case Study #5 - Data Mart
+# 🧺 Case Study #5 - Data Mart
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-5">
 		<img src="../assets/case_study_5.png" alt="Case Study #5 - Data Mart" width="500" height="520">
@@ -19,6 +19,12 @@ Data Mart is Danny’s latest venture and after running international operations
 In June 2020 - large scale supply changes were made at Data Mart. All Data Mart products now use sustainable packaging methods in every single step from the farm all the way to the customer.
 
 Danny needs your help to quantify the impact of this change on the sales performance for Data Mart and it’s separate business areas.
+
+The key business question he wants you to help him answer are the following:
+
+- What was the quantifiable impact of the changes introduced in June 2020?
+- Which platform, region, segment and customer types were the most impacted by this change?
+- What can we do about future introduction of similar sustainability updates to the business to minimise impact on sales?
 
 ## Entity Relationship Diagram
 <p align="center">
