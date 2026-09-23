@@ -433,7 +433,8 @@ running_balance AS (
 	- Define a Common Table Expression (`running_balances`) querying the `customer_transactions` table.
 	- Apply a **CASE** statement inside a **SUM() OVER ()** window function partitioned by `customer_id` and order by `txn_date` to compute a continuous transaction-by-transaction running balance.
 
-### Data Element 1: running customer balance column that includes the impact each transaction
+### Data Elements
+#### Data Element 1: running customer balance column that includes the impact each transaction
 ````sql
 SELECT
 	customer_id,
@@ -443,7 +444,7 @@ FROM running_balance
 ORDER BY customer_id, date;
 ````
 
-### Data Element 2: customer balance at the end of each month
+#### Data Element 2: customer balance at the end of each month
 ````sql
 SELECT
 	customer_id,
@@ -453,7 +454,7 @@ FROM closing_balances
 ORDER BY customer_id, month;
 ````
 
-### Data Element 3: minimum, average and maximum values of the running balance for each customer
+#### Data Element 3: minimum, average and maximum values of the running balance for each customer
 ````sql
 SELECT
 	customer_id,
