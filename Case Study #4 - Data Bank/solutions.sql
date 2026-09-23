@@ -192,6 +192,7 @@ FROM customer_change;
 -- - minimum, average and maximum values of the running balance for each customer
 -- Using all of the data available - how much data would have been required for each option on a monthly basis?
 
+-- Base Common Table Expressions (Shared CTEs)
 WITH monthly_activity AS (
 	SELECT
 		customer_id,
@@ -231,8 +232,36 @@ running_balance AS (
 				ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		) AS running_balance
 	FROM customer_transactions
-),
-rolling_30 AS (
+)
+
+-- Data Element 1: running customer balance column that includes the impact each transaction
+SELECT
+	customer_id,
+	date,
+	running_balance
+FROM running_balance
+ORDER BY customer_id, date;
+
+-- Data Element 2: customer balance at the end of each month
+SELECT
+	customer_id,
+	month,
+	closing_balance
+FROM closing_balances
+ORDER BY customer_id, month;
+
+-- Data Element 3: minimum, average and maximum values of the running balance for each customer
+SELECT
+	customer_id,
+	MIN(running_balance) AS min_balance,
+	ROUND(AVG(running_balance),2) AS avg_balance,
+	MAX(running_balance) AS max_balance
+FROM running_balance
+GROUP BY customer_id
+ORDER BY customer_id;
+
+-- Data Availability by Option
+rolling_30_days AS (
 	SELECT
 		customer_id,
 		date,
@@ -247,10 +276,10 @@ customer_month_avg AS (
 		customer_id,
 		DATE_TRUNC('month', date)::DATE AS month,
 		AVG(avg_30d_balance) AS avg_30d_balance
-    FROM rolling_30
+    FROM rolling_30_days
     GROUP BY customer_id, month
 ),
-with_prev AS (
+previous_closing_balances AS (
 	SELECT
 		customer_id,
 		month,
@@ -262,7 +291,7 @@ option1 AS (
 	SELECT
 		month,
 		SUM(prev_closing_balance) AS option1_data
-	FROM with_prev
+	FROM previous_closing_balances
 	GROUP BY month
 ),
 option2 AS (
@@ -280,43 +309,16 @@ option3 AS (
 	GROUP BY month
 )
 
--- Deliverable 1: running customer balance column that includes the impact each transaction
 SELECT
-	customer_id,
-	date,
-	running_balance
-FROM running_balance
-ORDER BY customer_id, date;
-
--- Deliverable 2: customer balance at the end of each month
-SELECT
-	customer_id,
-	month,
-	closing_balance
-FROM closing_balances
-ORDER BY customer_id, month;
-
--- Deliverable 3: minimum, average and maximum values of the running balance for each customer
-SELECT
-	customer_id,
-	MIN(running_balance) AS min_balance,
-	ROUND(AVG(running_balance),2) AS avg_balance,
-	MAX(running_balance) AS max_balance
-FROM running_balance
-GROUP BY customer_id
-ORDER BY customer_id;
-
--- Deliverable 4: monthly data required per option
-SELECT
-	o1.month,
-	ROUND(o1.option1_data) AS option1_data,
-	ROUND(o2.option2_data) AS option2_data,
-	ROUND(o3.option3_data) AS option3_data
+	EXTRACT(MONTH FROM o1.month) AS month,
+    TO_CHAR(o1.option1_data, 'FM999,999,999') AS option1_data,
+	TO_CHAR(o2.option2_data, 'FM999,999,999') AS option2_data,
+	TO_CHAR(o3.option3_data, 'FM999,999,999') option3_data
 FROM option1 o1
 INNER JOIN option2 o2
-	ON o2.month = o1.month
+	ON o1.month = o2.month
 INNER JOIN option3 o3
-	ON o3.month = o1.month
+	ON o1.month = o3.month
 ORDER BY o1.month;
 
 
