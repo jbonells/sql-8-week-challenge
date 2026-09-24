@@ -1,11 +1,11 @@
 ## A. Customer Nodes Exploration
 
 ### 1. How many unique nodes are there on the Data Bank system?
-````sql
+```sql
 SELECT
 	COUNT(DISTINCT node_id) AS unique_nodes
 FROM customer_nodes;
-````
+```
 
 #### Steps:
 - Apply the **COUNT** aggregate function with **DISTINCT** to isolate and calculate the total number of unique nodes across the system.
@@ -17,7 +17,7 @@ FROM customer_nodes;
 | 5            |
 
 ### 2. What is the number of nodes per region?
-````sql
+```sql
 SELECT
 	r.region_name,
     COUNT(DISTINCT cn.node_id) AS unique_nodes
@@ -26,7 +26,7 @@ INNER JOIN regions r
 	ON cn.region_id = r.region_id
 GROUP BY r.region_name
 ORDER BY r.region_name;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
@@ -44,7 +44,7 @@ ORDER BY r.region_name;
 | Europe      | 5            |
 
 ### 3. How many customers are allocated to each region?
-````sql
+```sql
 SELECT
 	r.region_name,
     COUNT(DISTINCT cn.customer_id) AS customers
@@ -53,7 +53,7 @@ INNER JOIN regions r
 	ON cn.region_id = r.region_id
 GROUP BY r.region_name
 ORDER BY r.region_name;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
@@ -71,12 +71,12 @@ ORDER BY r.region_name;
 | Europe      | 88        |
 
 ### 4. How many days on average are customers reallocated to a different node?
-````sql
+```sql
 SELECT 
     ROUND(AVG(end_date - start_date), 2) AS avg_node_reallocation_days
 FROM customer_nodes
 WHERE end_date <> '9999-12-31';
-````
+```
 
 #### Steps:
 - Apply a **WHERE** clause (`end_date <> '9999-12-31'`) to isolate completed node reallocations, excluding ongoing placeholder dates that would distort the average.
@@ -90,7 +90,7 @@ WHERE end_date <> '9999-12-31';
 | 14.63                      |
 
 ### 5. What is the median, 80th and 95th percentile for this same reallocation days metric for each region?
-````sql
+```sql
 SELECT 
     r.region_name,
     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY cn.end_date - cn.start_date) AS median,
@@ -102,7 +102,7 @@ INNER JOIN regions r
 WHERE cn.end_date <> '9999-12-31'
 GROUP BY r.region_name
 ORDER BY r.region_name;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
@@ -123,7 +123,7 @@ ORDER BY r.region_name;
 ## B. Customer Transactions
 
 ### 1. What is the unique count and total amount for each transaction type?
-````sql
+```sql
 SELECT 
     txn_type,
     COUNT(*) AS transaction_count,
@@ -131,7 +131,7 @@ SELECT
 FROM customer_transactions
 GROUP BY txn_type
 ORDER BY txn_type;
-````
+```
 
 #### Steps:
 - Group the records by `txn_type` to aggregate transaction activity by type.
@@ -147,7 +147,7 @@ ORDER BY txn_type;
 | withdrawal | 1580              | 793003       |
 
 ### 2. What is the average total historical deposit counts and amounts for all customers?
-````sql
+```sql
 WITH customer_deposits AS (
     SELECT
         customer_id,
@@ -162,7 +162,7 @@ SELECT
     ROUND(AVG(deposit_count), 2) AS avg_deposit_count,
     ROUND(AVG(deposit_amount), 2) AS avg_deposit_amount
 FROM customer_deposits;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`customer_deposit_summary`) querying the `customer_transactions` table.
@@ -179,7 +179,7 @@ FROM customer_deposits;
 | 5.34              | 2718.34            |
 
 ### 3. For each month - how many Data Bank customers make more than 1 deposit and either 1 purchase or 1 withdrawal in a single month?
-````sql
+```sql
 WITH monthly_activity AS(
 	SELECT
 		customer_id,
@@ -198,7 +198,7 @@ FROM monthly_activity
 WHERE deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)
 GROUP BY month
 ORDER BY month;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
@@ -218,7 +218,7 @@ ORDER BY month;
 | 4     | 70        |
 
 ### 4. What is the closing balance for each customer at the end of the month?
-````sql
+```sql
 WITH monthly_activity AS (
 	SELECT
 		customer_id,
@@ -247,7 +247,7 @@ LEFT JOIN monthly_activity ma
 	ON ma.customer_id = fc.customer_id
 	AND ma.month = fc.month
 ORDER BY fc.customer_id, fc.month;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
@@ -280,7 +280,7 @@ ORDER BY fc.customer_id, fc.month;
 - I am only showing the first 3 customers for reference.
 
 ### 5. What is the percentage of customers who increase their closing balance by more than 5%?
-````sql
+```sql
 WITH monthly_activity AS (
 	SELECT
 		customer_id,
@@ -332,7 +332,7 @@ FROM balance_comparison
 SELECT
     ROUND(100.0 * COUNT(*) FILTER (WHERE pct_change > 5) / COUNT(*), 2) AS pct_customers_over_5_percent
 FROM customer_change;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
@@ -372,7 +372,7 @@ For this multi-part challenge question - you have been requested to generate the
 Using all of the data available - how much data would have been required for each option on a monthly basis?
 
 ### Base Common Table Expressions (Shared CTEs)
-````sql
+```sql
 WITH monthly_activity AS (
 	SELECT
 		customer_id,
@@ -416,7 +416,7 @@ running_balance AS (
 		) AS running_balance
 	FROM customer_transactions
 )
-````
+```
 
 #### Steps:
 - CTE 1: Standardise Monthly Transaction Impacts
@@ -439,27 +439,27 @@ running_balance AS (
 ### Data Elements
 
 #### Data Element 1: running customer balance column that includes the impact each transaction
-````sql
+```sql
 SELECT
 	customer_id,
 	date,
 	running_balance
 FROM running_balance
 ORDER BY customer_id, date;
-````
+```
 
 #### Data Element 2: customer balance at the end of each month
-````sql
+```sql
 SELECT
 	customer_id,
 	month,
 	closing_balance
 FROM closing_balances
 ORDER BY customer_id, month;
-````
+```
 
 #### Data Element 3: minimum, average and maximum values of the running balance for each customer
-````sql
+```sql
 SELECT
 	customer_id,
 	MIN(running_balance) AS min_balance,
@@ -468,10 +468,10 @@ SELECT
 FROM running_balance
 GROUP BY customer_id
 ORDER BY customer_id;
-````
+```
 
 ### Data Availability by Option
-````sql
+```sql
 rolling_30_days AS (
 	SELECT
 		customer_id,
@@ -531,7 +531,7 @@ INNER JOIN option2 o2
 INNER JOIN option3 o3
 	ON o1.month = o3.month
 ORDER BY o1.month;
-````
+```
 
 #### Steps:
 - CTE 5: Rolling 30-Day Average Balance
@@ -576,7 +576,7 @@ ORDER BY o1.month;
 ## D. Extra Challenge
 
 ### Part 1: Simple Interest (Non-Compounding)
-````sql
+```sql
 WITH daily_activity AS (
 	SELECT
 		customer_id,
@@ -615,7 +615,7 @@ SELECT
 FROM daily_balance
 GROUP BY month
 ORDER BY month;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`daily_activity`) querying the `customer_transactions` table.
@@ -643,7 +643,7 @@ ORDER BY month;
 
 
 ### Part 2: Daily Compounding Interest
-````sql
+```sql
 WITH RECURSIVE daily_activity AS (
 	SELECT
 		customer_id,
@@ -706,7 +706,7 @@ SELECT
 FROM daily_interest
 GROUP BY month
 ORDER BY month;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`daily_activity`) querying the `customer_transactions` table.
