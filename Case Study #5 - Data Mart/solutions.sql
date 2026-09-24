@@ -23,9 +23,9 @@ WITH formatted_dates AS (
 )
 SELECT
 	parsed_date AS week_date,
-	((EXTRACT(DOY FROM parsed_date)::integer - 1) / 7) + 1 AS week_number,
-	EXTRACT(MONTH FROM parsed_date) AS month_number,
-	EXTRACT(YEAR FROM parsed_date) AS calendar_year,
+	((EXTRACT(DOY FROM parsed_date)::INTEGER - 1) / 7) + 1 AS week_number,
+	EXTRACT(MONTH FROM parsed_date)::INTEGER AS month_number,
+	EXTRACT(YEAR FROM parsed_date)::INTEGER AS calendar_year,
 	region,
 	platform,
 	COALESCE(NULLIF(segment, 'null'), 'unknown') AS segment,
@@ -43,7 +43,7 @@ SELECT
 	customer_type,
 	transactions,
 	sales,
-	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
+	ROUND(sales::NUMERIC / NULLIF(transactions, 0), 2) AS avg_transaction
 FROM formatted_dates;
 
 -- NOTE: I have added the new table to schema.sql to run the solution easily.
@@ -61,11 +61,13 @@ WITH weeks_per_year AS (
     SELECT GENERATE_SERIES(1, 52) AS week_number
 ),
 missing_weeks AS (
-    SELECT wpy.week_number
+    SELECT
+		wpy.week_number
     FROM weeks_per_year wpy
-    LEFT JOIN clean_weekly_sales cws
-        ON wpy.week_number = cws.week_number
-    WHERE cws.week_number IS NULL
+	WHERE NOT EXISTS (
+		SELECT * FROM clean_weekly_sales cws
+		WHERE cws.week_number = wpy.week_number
+	)
 ),
 week_groups AS (
     SELECT 
@@ -86,12 +88,13 @@ SELECT
         WHEN start_week = end_week THEN start_week::TEXT
         ELSE start_week || ' - ' || end_week
     END AS missing_week_range
-FROM date_ranges;
+FROM date_ranges
+ORDER BY start_week;
 
 -- 3. How many total transactions were there for each year in the dataset?
 SELECT
 	calendar_year,
-    TO_CHAR(SUM(transactions), 'FM999,999,999') AS total_transactions
+    SUM(transactions) AS total_transactions
 FROM clean_weekly_sales
 GROUP BY calendar_year
 ORDER BY calendar_year;
@@ -100,7 +103,7 @@ ORDER BY calendar_year;
 SELECT
 	region,
     month_number AS month,
-    TO_CHAR(SUM(sales), 'FM999,999,999,999') AS total_sales
+    SUM(sales) AS total_sales
 FROM clean_weekly_sales
 GROUP BY region, month
 ORDER BY region, month;
@@ -108,10 +111,10 @@ ORDER BY region, month;
 -- 5. What is the total count of transactions for each platform
 SELECT
 	platform,
-    TO_CHAR(SUM(transactions), 'FM999,999,999,999') AS total_transactions
+    SUM(transactions) AS total_transactions
 FROM clean_weekly_sales
 GROUP BY platform
-ORDER BY platform;
+ORDER BY total_transactions DESC;
 
 -- 6. What is the percentage of sales for Retail vs Shopify for each month?
 SELECT
@@ -126,29 +129,53 @@ ORDER BY year, month;
 -- 7. What is the percentage of sales by demographic for each year in the dataset?
 SELECT
     calendar_year AS year,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'Couples')::NUMERIC / SUM(sales), 2) AS couples_percentage,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'Families')::NUMERIC / SUM(sales), 2) AS families_percentage,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'unknown')::NUMERIC / SUM(sales), 2) AS unknown_percentage
+    demographic,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (PARTITION BY calendar_year), 2) AS sales_percentage
 FROM clean_weekly_sales
-GROUP BY year
-ORDER BY year;
+GROUP BY year, demographic
+ORDER BY year, demographic;
 
 -- 8. Which age_band and demographic values contribute the most to Retail sales?
+-- This question can be read two ways: ranking `age_band` and `demographic` independently, or ranking their combinations.
+
+-- Option 1: ranking `age_band` and `demographic` independently
+SELECT
+	'age_band' AS dimension,
+	age_band AS value,
+	SUM(sales) AS retail_sales,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
+FROM clean_weekly_sales
+WHERE platform = 'Retail'
+GROUP BY age_band
+
+UNION ALL
+
+SELECT
+	'demographic' AS dimension,
+	demographic AS value,
+	SUM(sales) AS retail_sales,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
+FROM clean_weekly_sales
+WHERE platform = 'Retail'
+GROUP BY demographic
+ORDER BY dimension, retail_sales DESC;
+
+-- Option 2: ranking `age_band` and `demographic` combinations
 SELECT
     age_band,
     demographic,
-    TO_CHAR(SUM(sales), 'FM999,999,999,999') AS retail_sales,
+    SUM(sales) AS retail_sales,
     ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
 FROM clean_weekly_sales
 WHERE platform = 'Retail'
 GROUP BY age_band, demographic
-ORDER BY SUM(sales) DESC;
+ORDER BY retail_sales DESC;
 
 -- 9. Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
 SELECT
 	calendar_year AS year,
     platform,
-	ROUND(AVG(avg_transaction), 2) AS avg_transactio_column,
+	ROUND(AVG(avg_transaction), 2) AS avg_of_avg_transaction,
     ROUND(SUM(sales)::NUMERIC / SUM(transactions), 2) AS average_transaction,
     ROUND(AVG(avg_transaction) - SUM(sales)::NUMERIC / SUM(transactions), 2) AS difference
 FROM clean_weekly_sales

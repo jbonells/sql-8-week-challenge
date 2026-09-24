@@ -17143,9 +17143,9 @@ WITH formatted_dates AS (
 )
 SELECT
 	parsed_date AS week_date,
-	((EXTRACT(DOY FROM parsed_date)::integer - 1) / 7) + 1 AS week_number,
-	EXTRACT(MONTH FROM parsed_date) AS month_number,
-	EXTRACT(YEAR FROM parsed_date) AS calendar_year,
+	((EXTRACT(DOY FROM parsed_date)::INTEGER - 1) / 7) + 1 AS week_number,
+	EXTRACT(MONTH FROM parsed_date)::INTEGER AS month_number,
+	EXTRACT(YEAR FROM parsed_date)::INTEGER AS calendar_year,
 	region,
 	platform,
 	COALESCE(NULLIF(segment, 'null'), 'unknown') AS segment,
@@ -17163,5 +17163,5 @@ SELECT
 	customer_type,
 	transactions,
 	sales,
-	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
+	ROUND(sales::NUMERIC / NULLIF(transactions, 0), 2) AS avg_transaction
 FROM formatted_dates;

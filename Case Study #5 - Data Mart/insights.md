@@ -21,7 +21,7 @@
 - Ensure all null string values with an "unknown" string value in the original segment column as well as the new age_band and demographic columns
 - Generate a new avg_transaction column as the sales value divided by transactions rounded to 2 decimal places for each record
 
-````sql
+```sql
 DROP TABLE IF EXISTS clean_weekly_sales;
 CREATE TABLE clean_weekly_sales AS
 WITH formatted_dates AS (
@@ -32,9 +32,9 @@ WITH formatted_dates AS (
 )
 SELECT
 	parsed_date AS week_date,
-	((EXTRACT(DOY FROM parsed_date)::integer - 1) / 7) + 1 AS week_number,
-	EXTRACT(MONTH FROM parsed_date) AS month_number,
-	EXTRACT(YEAR FROM parsed_date) AS calendar_year,
+	((EXTRACT(DOY FROM parsed_date)::INTEGER - 1) / 7) + 1 AS week_number,
+	EXTRACT(MONTH FROM parsed_date)::INTEGER AS month_number,
+	EXTRACT(YEAR FROM parsed_date)::INTEGER AS calendar_year,
 	region,
 	platform,
 	COALESCE(NULLIF(segment, 'null'), 'unknown') AS segment,
@@ -52,18 +52,19 @@ SELECT
 	customer_type,
 	transactions,
 	sales,
-	ROUND(sales::NUMERIC / transactions, 2) AS avg_transaction
+	ROUND(sales::NUMERIC / NULLIF(transactions, 0), 2) AS avg_transaction
 FROM formatted_dates;
-````
+```
 
 #### Steps:
+- Use **DROP TABLE IF EXISTS** and **CREATE TABLE AS** to create the `clean_weekly_sales` table with the results of the query.
 - Define a Common Table Expression (`customer_deposit_summary`) querying the `weekly_sales` table.
 - Use **TO_DATE()** to convert the `week_date` string ('DD/MM/YY') into a standardised date format.
 - Use **EXTRACT()** to retain the month and year components, and apply custom day-of-year math to calculate the `week_number`.
+- Apply explicit **INTEGER** type casting to the extracted date parts to ensure clean numeric data types instead of floating-point numbers.
 - Apply **COALESCE()** and **NULLIF()** to the `segment` column to replace literal 'null' strings with 'unknown'.
 - Use **CASE** statements combined with **RIGHT()** and **LEFT()** functions to evaluate the `segment` codes and categorise the `age_band` and `demographic` dimensions.
-- Apply the **ROUND()** function, casting `sales` to numeric, to compute the `avg_transaction` metric.
-- Use **DROP TABLE IF EXISTS** and **CREATE TABLE AS** to to create the `clean_weekly_sales` table with the results of the query.
+- Apply the **ROUND()** function, casting `sales` to numeric and handling zero-division with **NULLIF()**, to compute the `avg_transaction` metric.
 
 **NOTE:** I have added the new table to `schema.sql` to run the solution easily.
 
@@ -71,11 +72,11 @@ FROM formatted_dates;
 ## B. Data Exploration
 
 ### 1. What day of the week is used for each week_date value?
-````sql
+```sql
 SELECT
     DISTINCT TO_CHAR(week_date, 'FMDay') AS week_day
 FROM clean_weekly_sales;
-````
+```
 
 #### Steps:
 - Apply the **TO_CHAR** function with **DISTINCT** to isolate and retrieve the day name used.
@@ -87,16 +88,18 @@ FROM clean_weekly_sales;
 | Monday   |
 
 ### 2. What range of week numbers are missing from the dataset?
-````sql
+```sql
 WITH weeks_per_year AS (
     SELECT GENERATE_SERIES(1, 52) AS week_number
 ),
 missing_weeks AS (
-    SELECT wpy.week_number
+    SELECT
+		wpy.week_number
     FROM weeks_per_year wpy
-    LEFT JOIN clean_weekly_sales cws
-        ON wpy.week_number = cws.week_number
-    WHERE cws.week_number IS NULL
+	WHERE NOT EXISTS (
+		SELECT * FROM clean_weekly_sales cws
+		WHERE cws.week_number = wpy.week_number
+	)
 ),
 week_groups AS (
     SELECT 
@@ -117,18 +120,20 @@ SELECT
         WHEN start_week = end_week THEN start_week::TEXT
         ELSE start_week || ' - ' || end_week
     END AS missing_week_range
-FROM date_ranges;
-````
+FROM date_ranges
+ORDER BY start_week;
+```
 
 #### Steps:
-- Define a Common Table Expression (`weeks_per_year`) using **GENERATE_SERIES(1, 52)** to generate a complete sequence of all 52 weeks.
+- Define a Common Table Expression (`weeks_per_year`) using **GENERATE_SERIES(1, 52)** to produce a sequence of all 52 calendar weeks.
 - Define a Common Table Expression (`missing_weeks`) querying the `weeks_per_year` CTE.
-- Use a **LEFT JOIN** on `week_number` to connect the `clean_weekly_sales` table applying a filter condition in the **WHERE** clause (`week_number IS NULL'`) to isolate missing individual weeks.
+- Apply a **WHERE NOT EXISTS** subquery against `clean_weekly_sales` to isolate unrecorded week numbers.
 - Define a Common Table Expression (`week_groups`) querying the `missing_weeks` CTE.
-- Apply the **ROW_NUMBER()** window function ordered by `week_number` to flag and group consecutive missing numbers.
+- Apply the **ROW_NUMBER() OVER()** window function ordered by `week_number` to assign a constant identifier to consecutive sequence blocks.
 - Define a Common Table Expression (`date_ranges`) querying the `week_groups` CTE.
-- Use **MIN()** and **MAX()** functions to extract the start and end boundaries of each continuous block of missing weeks.
-- Apply a **CASE** statement combined with string concatenation to format the output cleanly into ranges or single numbers when only an isolated week is missing.
+- Group records by `groups` alongside **MIN()** and **MAX()** functions to establish the start and end week boundaries for each block.
+- Apply a **CASE** statement with string concatenation (||) and text casting to format output as single numbers or ranges.
+- Order the final dataset in ascending sequence by `start_week` to display the missing week ranges in chronological order.
 
 #### Answer:
 | missing_week_range |
@@ -137,18 +142,19 @@ FROM date_ranges;
 | 37 - 52            |
 
 ### 3. How many total transactions were there for each year in the dataset?
-````sql
+```sql
 SELECT
 	calendar_year,
-    TO_CHAR(SUM(transactions), 'FM999,999,999') AS total_transactions
+    SUM(transactions) AS total_transactions
 FROM clean_weekly_sales
 GROUP BY calendar_year
 ORDER BY calendar_year;
-````
+```
 
 #### Steps:
-- Use the **SUM** aggregate function adding all individual transaction values for each year.
-- (Optional) Use **TO_CHAR()** to convert the aggregated sum into a formatted text string.
+- Group records by `calendar_year` to aggregate transaction totals for each distinct year.
+- Use the **SUM** aggregate function to add all individual `transactions` values for each year.
+- (Optional) Order the final dataset in ascending sequence by `calendar_year` for structured presentation.
 
 #### Answer:
 | calendar_year | total_transactions |
@@ -158,19 +164,20 @@ ORDER BY calendar_year;
 | 2020          | 375,813,651        |
 
 ### 4. What is the total sales for each region for each month?
-````sql
+```sql
 SELECT
 	region,
     month_number AS month,
-    TO_CHAR(SUM(sales), 'FM999,999,999,999') AS total_sales
+    SUM(sales) AS total_sales
 FROM clean_weekly_sales
 GROUP BY region, month
 ORDER BY region, month;
-````
+```
 
 #### Steps:
-- Use the **SUM** aggregate function adding all individual sales values for each region and month.
-- (Optional) Use **TO_CHAR()** to convert the aggregated sum into a formatted text string.
+- Group records by `region` and `month` to aggregate sales for each region and month combination.
+- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- (Optional) Order the final dataset in ascending sequence by `region` and `month` for structured presentation.
 
 #### Answer:
 | region | month | total_sales   |
@@ -183,21 +190,22 @@ ORDER BY region, month;
 | AFRICA | 8     | 1,809,596,890 |
 | AFRICA | 9     | 276,320,987   |
 
-- I'm only showing the results for Africa.
+- **Note:** The table above displays a sample of the full result set (filtered to the AFRICA region).
 
 ### 5. What is the total count of transactions for each platform
-````sql
+```sql
 SELECT
 	platform,
-    TO_CHAR(SUM(transactions), 'FM999,999,999,999') AS total_transactions
+    SUM(transactions) AS total_transactions
 FROM clean_weekly_sales
 GROUP BY platform
-ORDER BY platform;
-````
+ORDER BY total_transactions DESC;
+```
 
 #### Steps:
-- Use the **SUM** aggregate function adding all individual transaction values for each platform.
-- (Optional) Use **TO_CHAR()** to convert the aggregated sum into a formatted text string.
+- Group records by `platform` to aggregate transaction totals for each platform.
+- Use the **SUM** aggregate function to add all individual `transactions` values for each platform.
+- (Optional) Order the final dataset in descending sequence by `total_transactions` for structured presentation.
 
 #### Answer:
 | platform | total_transactions |
@@ -206,7 +214,7 @@ ORDER BY platform;
 | Shopify  | 5,925,169          |
 
 ### 6. What is the percentage of sales for Retail vs Shopify for each month?
-````sql
+```sql
 SELECT
 	calendar_year AS year,
     month_number AS month,
@@ -215,14 +223,15 @@ SELECT
 FROM clean_weekly_sales
 GROUP BY year, month
 ORDER BY year, month;
-````
+```
 
 #### Steps:
-- Use the **SUM** aggregate function to calculate the total sales.
-- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct platforms ('Retail' and 'Shopify').
-- Use the **NUMERIC** type cast on the numerator to prevent integer truncation and ensure precise division.
-- Divide each platform's total sales by the overall `SUM(sales)` for that year and month.
-- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Group records by `year` and `month` to aggregate sales for each year and month combination.
+- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct platform ('Retail' and 'Shopify').
+- Multiply the filtered sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by the overall monthly sales.
+- Apply the **ROUND()** function to format the resulting percentage metrics to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `year` and `month` for structured presentation.
 
 #### Answer:
 | year | month | retail_percentage | shopify_percentage |
@@ -235,54 +244,119 @@ ORDER BY year, month;
 | 2018 | 8     | 97.71             | 2.29               |
 | 2018 | 9     | 97.68             | 2.32               |
 
-- I'm only showing the results for 2018.
+- **Note:** The table above displays a sample of the full result set (filtered to the 2018 year).
 
 ### 7. What is the percentage of sales by demographic for each year in the dataset?
-````sql
+```sql
 SELECT
     calendar_year AS year,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'Couples')::NUMERIC / SUM(sales), 2) AS couples_percentage,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'Families')::NUMERIC / SUM(sales), 2) AS families_percentage,
-    ROUND(100 * SUM(sales) FILTER (WHERE demographic = 'unknown')::NUMERIC / SUM(sales), 2) AS unknown_percentage
+    demographic,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (PARTITION BY calendar_year), 2) AS sales_percentage
 FROM clean_weekly_sales
-GROUP BY year
-ORDER BY year;
-````
+GROUP BY year, demographic
+ORDER BY year, demographic;
+```
 
 #### Steps:
-- Use the **SUM** aggregate function to calculate the total sales.
-- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct demographic category ('Couples', 'Families', and 'unknown').
-- Use the **NUMERIC** type cast on the numerator to prevent integer truncation and ensure precise division.
-- Divide each demographic's total sales by the overall `SUM(sales)` for that year.
+- Group records by `year` and `demographic` to aggregate sales for each year and demographic combination.
+- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Apply a **SUM() OVER()** window function with partition by `calendar_year` to calculate overall annual sales across all demographics.
+- Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by overall annual sales.
 - Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Order the final dataset in ascending sequence by `year` and `demographic` for structured presentation.
 
 #### Answer:
-| year | couples_percentage | families_percentage | unknown_percentage |
-| ---- | ------------------ | ------------------- | ------------------ | 
-| 2018 | 26.38              | 31.99               | 41.63              |
-| 2019 | 27.28              | 32.47               | 40.25              |
-| 2020 | 28.72              | 32.73               | 38.55              |
+| year | demographic | sales_percentage |
+| ---- | ----------- | ---------------- |
+| 2018 | Couples     | 26.38            |
+| 2018 | Families    | 31.99            |
+| 2018 | unknown     | 41.63            |
+| 2019 | Couples     | 27.28            |
+| 2019 | Families    | 32.47            |
+| 2019 | unknown     | 40.25            |
+| 2020 | Couples     | 28.72            |
+| 2020 | Families    | 32.73            |
+| 2020 | unknown     | 38.55            |
 
 ### 8. Which age_band and demographic values contribute the most to Retail sales?
-````sql
+- This question can be read two ways: ranking `age_band` and `demographic` independently, or ranking their combinations.
+- I have taken Option 2 as the main interpretation.
+
+#### Option 1: ranking `age_band` and `demographic` independently
+```sql
+SELECT
+	'age_band' AS dimension,
+	age_band AS value,
+	SUM(sales) AS retail_sales,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
+FROM clean_weekly_sales
+WHERE platform = 'Retail'
+GROUP BY age_band
+
+UNION ALL
+
+SELECT
+	'demographic' AS dimension,
+	demographic AS value,
+	SUM(sales) AS retail_sales,
+    ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
+FROM clean_weekly_sales
+WHERE platform = 'Retail'
+GROUP BY demographic
+ORDER BY dimension, retail_sales DESC;
+```
+
+#### Steps:
+- Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
+- Add literal string labels ('age_band' as dimension) and group records by `age_band` to aggregate sales for each age band.
+- Use the **SUM** aggregate function to add all individual `sales` values for each age band.
+- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across age bands.
+- Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
+- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Apply **UNION ALL** to combine the age band results with the demographic results.
+- Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
+- Add literal string labels ('demographic' as dimension) and group records by `demographic` to aggregate sales for each demographic.
+- Use the **SUM** aggregate function to add all individual `sales` values for each demographic.
+- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across demographics.
+- Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
+- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- (Optional) Order the final dataset ascending by `dimension` and descending by `retail_sales` for structured presentation.
+
+#### Answer:
+| dimension   | value        | retail_sales 	pct_of_retail_sales
+| ----------- | ------------ | -------------- | ------------------- | 
+| age_band    | unknown      | 16,067,285,533 | 40.52               |
+| age_band    | Retirees     | 13,005,266,930 | 32.80               |
+| age_band    | Middle Aged  | 6,208,251,884  | 15.66               |
+| age_band    | Young Adults | 4,373,812,090  | 11.03               |
+| demographic | unknown      | 16,067,285,533 | 40.52               |
+| demographic | Families     | 12,759,667,763 | 32.18               |
+| demographic | Couples      | 10,827,663,141 | 27.30               |
+
+- Each dimension adds up to 100% on its own, because each is a different slicing of the same Retail total.
+- Excluding unknown, Retirees (32.80%) is the top age band and Families (32.18%) is the top demographic.
+
+#### Option 2: ranking `age_band` and `demographic` combinations
+```sql
 SELECT
     age_band,
     demographic,
-    TO_CHAR(SUM(sales), 'FM999,999,999,999') AS retail_sales,
+    SUM(sales) AS retail_sales,
     ROUND(100 * SUM(sales)::NUMERIC / SUM(SUM(sales)) OVER (), 2) AS pct_of_retail_sales
 FROM clean_weekly_sales
 WHERE platform = 'Retail'
 GROUP BY age_band, demographic
-ORDER BY SUM(sales) DESC;
-````
+ORDER BY retail_sales DESC;
+```
 
 #### Steps:
-- Use the **SUM** aggregate function grouped by `age_band` and `demographic` to calculate total sales per category.
-- Use the window function **SUM() OVER ()** combined with **SUM()** to compute the overall total retail sales denominator.
-- Use the **NUMERIC** type cast on the numerator to prevent integer truncation and ensure precise division.
+- Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
+- Group records by `age_band` and `demographic` to aggregate sales for each age band and demographic combination.
+- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across all groups.
+- Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
 - Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
-- Apply a filter condition in the **WHERE** clause (`platform = 'Retail''`) to include only retail sales.
-- (Optional) Use **TO_CHAR()** to convert the aggregated sum into a formatted text string.
+- (Optional) Order the final dataset in descending sequence by `retail_sales` for structured presentation.
 
 #### Answer:
 | age_band     | demographic | retail_sales   | pct_of_retail_sales |
@@ -295,39 +369,44 @@ ORDER BY SUM(sales) DESC;
 | Middle Aged  | Couples     | 1,854,160,330  | 4.68                |
 | Young Adults | Families    | 1,770,889,293  | 4.47                |
 
-**Note:** this question is ambiguous giving two different options (one groups by `age_band` and `demographic` separately; the other groups by (`age_band`, `demographic`) jointly), I have assumed the latter.
+- This option is more granular: the independent rankings from Option 1 can be derived from it, but not vice versa.
+- Excluding unknown, the top combination is Retirees + Families (16.73%), followed closely by Retirees + Couples (16.07%).
 
 ### 9. Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
-````sql
+```sql
 SELECT
 	calendar_year AS year,
     platform,
-	ROUND(AVG(avg_transaction), 2) AS avg_transactio_column,
+	ROUND(AVG(avg_transaction), 2) AS avg_of_avg_transaction,
     ROUND(SUM(sales)::NUMERIC / SUM(transactions), 2) AS average_transaction,
     ROUND(AVG(avg_transaction) - SUM(sales)::NUMERIC / SUM(transactions), 2) AS difference
 FROM clean_weekly_sales
 GROUP BY year, platform
 ORDER BY year, platform;
-````
+```
 
 #### Steps:
-- Use the **AVG()** aggregate function on the pre-calculated `avg_transaction` column.
-- Use the **SUM()** aggregate function for both `sales` and `transactions`, casting sales to calculate the weighted average transaction size.
-- Compute the mathematical difference between the simple average of averages and the weighted average to highlight the variance.
-- Apply the **ROUND()** function to format all metric outputs to two decimal places.
+- Group records by `year` and `platform` to aggregate transaction metrics for each year and platform combination.
+- Apply **AVG()** to `avg_transaction` and **ROUND()** to two decimal places to calculate the simple average of individual transaction averages.
+- Use `SUM(sales)::NUMERIC / SUM(transactions)` inside **ROUND()** to compute the true weighted average transaction size.
+- Use the **SUM()** aggregate function for both `sales` and `transactions`, casting sales to compute the true weighted average transaction size
+- Subtract the true weighted average from the simple average of averages and apply **ROUND()** to highlight the numerical difference.
+- (Optional) Order the final dataset in ascending sequence by `year` and `platform` for structured presentation.
 
 #### Answer:
-| year | platform | avg_transactio_column | average_transaction | difference |
-| ---- | -------- | --------------------- | ------------------- | ---------- |
-| 2018 | Retail   | 42.91                 | 36.56               | 6.34       |
-| 2018 | Shopify  | 188.28                | 192.48              | -4.20      |
-| 2019 | Retail   | 41.97                 | 36.83               | 5.13       |
-| 2019 | Shopify  | 177.56                | 183.36              | -5.80      |
-| 2020 | Retail   | 40.64                 | 36.56               | 4.08       |
-| 2020 | Shopify  | 174.87                | 179.03              | -4.16      |
+| year | platform | avg_of_avg_transaction | average_transaction | difference |
+| ---- | -------- | ---------------------- | ------------------- | ---------- |
+| 2018 | Retail   | 42.91                  | 36.56               | 6.34       |
+| 2018 | Shopify  | 188.28                 | 192.48              | -4.20      |
+| 2019 | Retail   | 41.97                  | 36.83               | 5.13       |
+| 2019 | Shopify  | 177.56                 | 183.36              | -5.80      |
+| 2020 | Retail   | 40.64                  | 36.56               | 4.08       |
+| 2020 | Shopify  | 174.87                 | 179.03              | -4.16      |
 
-- The `avg_transaction` column is computed per-row, so a plain **AVG()** over it gives an unweighted "average of averages".
-- The correct approach is a weighted average (`average_transaction`), which properly weights each row by its actual transaction volume.
+- Each `avg_transaction` value is already an average for one row (one week, region, platform, segment and customer type).
+- Averaging those values gives an average of averages, which treats a row with 100 transactions the same as a row with 500,000.
+- The correct approach is a weighted average (`average_transaction`), which weights each row by its number of transactions.
+- The `avg_of_avg_transaction` is shown only for comparison.
 
 
 ## C. Before & After Analysis
@@ -338,13 +417,13 @@ Taking the `week_date` value of `2020-06-15` as the baseline week where the Data
 We would include all `week_date` values `for 2020-06-15` as the start of the period after the change and the previous `week_date` values would be before.
 
 Before we start, we could determine the `week_nember` corresponding to `2020-06-15` to simplify our filters during the analysis.
-````sql
+```sql
 SELECT
 	DISTINCT week_number
 FROM clean_weekly_sales
 WHERE week_date = '2020-06-15'
 	AND calendar_year = 2020;
-````
+```
 
 | week_number |
 | ----------- |
@@ -354,7 +433,7 @@ WHERE week_date = '2020-06-15'
 - Note that we did not need to filter by `calendar_year = 2020` but I added it here for clarity as it will be used later on.
 
 ### 1. What is the total sales for the 4 weeks before and after 2020-06-15? What is the growth or reduction rate in actual values and percentage of sales?
-````sql
+```sql
 WITH period AS (
 	SELECT
 		week_number,
@@ -377,7 +456,7 @@ SELECT
     (sales_after - sales_before) AS sales_change,
     ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
 FROM split_period;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table.
@@ -397,7 +476,7 @@ FROM split_period;
 - Following the change, total sales decreased by $10,973,134 over the four-week period, representing a 0.47% drop in overall sales volume.
 
 ### 2. What about the entire 12 weeks before and after?
-````sql
+```sql
 WITH period AS (
 	SELECT
 		week_number,
@@ -420,7 +499,7 @@ SELECT
     (sales_after - sales_before) AS sales_change,
     ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
 FROM split_period;
-````
+```
 
 #### Steps:
 - Same as previous exercise changing the `week_number` range to `week_number BETWEEN 12 AND 36`.
@@ -433,7 +512,7 @@ FROM split_period;
 - Following the change, total sales decreased by $722,350,742 over the twelve-week period, representing a 10.14% drop in overall sales volume.
 
 ### 3. How do the sale metrics for these 2 periods before and after compare with the previous years in 2018 and 2019?
-````sql
+```sql
 WITH period AS (
 	SELECT
 		calendar_year AS year,
@@ -466,7 +545,7 @@ SELECT
     ROUND(100 * (twelve_week_sales_after - twelve_week_sales_before)::NUMERIC / twelve_week_sales_before, 2) AS twelve_week_percentage_rate
 FROM split_period
 ORDER BY year;
-````
+```
 
 #### Steps:
 - Same as previous exercise but including the four-week period and `calendar_year`.
@@ -488,7 +567,7 @@ Which areas of the business have the highest negative impact in sales metrics pe
 - customer_type
 
 Do you have any further recommendations for Danny’s team at Data Mart or any interesting insights based off this analysis?
-````sql
+```sql
 WITH region_period AS (
 	SELECT
 		region,
@@ -633,7 +712,7 @@ SELECT
     ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
 FROM customer_type_split
 ORDER BY area, percentage_rate;
-````
+```
 
 #### Steps:
 - Define a series of period Common Table Expressions (`region_period`, `platform_period`, `age_band_period`, `demographic_period`, and `customer_type_period`) querying the `clean_weekly_sales` table.
