@@ -187,73 +187,66 @@ ORDER BY year, platform;
 -- This technique is usually used when we inspect an important event and want to inspect the impact before and after a certain point in time.
 -- Taking the week_date value of 2020-06-15 as the baseline week where the Data Mart sustainable packaging changes came into effect.
 -- We would include all week_date values for 2020-06-15 as the start of the period after the change and the previous week_date values would be before
+-- Using this analysis approach - answer the following questions:
 
 -- 1. What is the total sales for the 4 weeks before and after 2020-06-15? What is the growth or reduction rate in actual values and percentage of sales?
 WITH period AS (
 	SELECT
-		week_number,
-  		SUM(sales) AS total_sales
+		SUM(sales) FILTER (
+			WHERE week_date >= DATE '2020-06-15' - INTERVAL '4 weeks'
+				AND week_date <  DATE '2020-06-15'
+		) AS sales_before,
+		SUM(sales) FILTER (
+			WHERE week_date >= DATE '2020-06-15'
+				AND week_date <  DATE '2020-06-15' + INTERVAL '4 weeks'
+		) AS sales_after
 	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 20 AND 28
-		AND calendar_year = 2020
-  	GROUP BY week_number
-),
-split_period AS (
-	SELECT
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 20 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 28) AS sales_after
-	FROM period
 )
 
 SELECT
 	sales_before,
 	sales_after,
     (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM split_period;
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_change
+FROM period;
 
 -- 2. What about the entire 12 weeks before and after?
 WITH period AS (
 	SELECT
-		week_number,
-  		SUM(sales) AS total_sales
+		SUM(sales) FILTER (
+			WHERE week_date >= DATE '2020-06-15' - INTERVAL '12 weeks'
+				AND week_date <  DATE '2020-06-15'
+		) AS sales_before,
+		SUM(sales) FILTER (
+			WHERE week_date >= DATE '2020-06-15'
+				AND week_date <  DATE '2020-06-15' + INTERVAL '12 weeks'
+		) AS sales_after
 	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-		AND calendar_year = 2020
-  	GROUP BY week_number
-),
-split_period AS (
-	SELECT
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM period
 )
 
 SELECT
 	sales_before,
 	sales_after,
     (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM split_period;
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_change
+FROM period;
 
 -- 3. How do the sale metrics for these 2 periods before and after compare with the previous years in 2018 and 2019?
-WITH period AS (
+WITH baseline AS (
+    SELECT
+		DISTINCT week_number AS baseline_week
+    FROM clean_weekly_sales
+    WHERE week_date = DATE '2020-06-15'
+),
+period AS (
 	SELECT
 		calendar_year AS year,
-		week_number,
-  		SUM(sales) AS total_sales
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week - 4 AND baseline_week - 1) AS four_week_sales_before,
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week AND baseline_week + 3) AS four_week_sales_after,
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week - 12 AND baseline_week - 1) AS twelve_week_sales_before,
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week AND baseline_week + 11) AS twelve_week_sales_after
 	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-  	GROUP BY calendar_year, week_number
-),
-split_period AS (
-	SELECT
-		year,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 20 AND 23) AS four_week_sales_before,
-        SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 28) AS four_week_sales_after,
-        SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS twelve_week_sales_before,
-        SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS twelve_week_sales_after
-	FROM period
+	CROSS JOIN baseline
 	GROUP BY year
 )
 
@@ -262,12 +255,12 @@ SELECT
 	four_week_sales_before,
 	four_week_sales_after,
     (four_week_sales_after - four_week_sales_before) AS four_week_sales_change,
-    ROUND(100 * (four_week_sales_after - four_week_sales_before) / four_week_sales_before, 2) AS four_week_percentage_rate,
+    ROUND(100 * (four_week_sales_after - four_week_sales_before)::NUMERIC / four_week_sales_before, 2) AS four_week_percentage_change,
 	twelve_week_sales_before,
 	twelve_week_sales_after,
     (twelve_week_sales_after - twelve_week_sales_before) AS twelve_week_sales_change,
-    ROUND(100 * (twelve_week_sales_after - twelve_week_sales_before)::NUMERIC / twelve_week_sales_before, 2) AS twelve_week_percentage_rate
-FROM split_period
+    ROUND(100 * (twelve_week_sales_after - twelve_week_sales_before)::NUMERIC / twelve_week_sales_before, 2) AS twelve_week_percentage_change
+FROM period
 ORDER BY year;
 
 
@@ -278,147 +271,40 @@ ORDER BY year;
 -- - age_band
 -- - demographic
 -- - customer_type
-WITH region_period AS (
+WITH baseline AS (
+    SELECT
+		DISTINCT week_number AS baseline_week
+    FROM clean_weekly_sales
+    WHERE week_date = DATE '2020-06-15'
+),
+period_sales AS (
 	SELECT
-		region,
-		week_number,
-  		SUM(sales) AS total_sales
+		dim.area,
+		dim.value,
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week - 12 AND baseline_week - 1) AS sales_before,
+		SUM(sales) FILTER (WHERE week_number BETWEEN baseline_week AND baseline_week + 11) AS sales_after
 	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
+  	CROSS JOIN baseline
+	CROSS JOIN LATERAL (
+		VALUES
+			('region', region),
+			('platform', platform),
+			('age_band', age_band),
+			('demographic', demographic),
+			('customer_type', customer_type)
+    ) AS dim(area, value)
+	WHERE week_number BETWEEN baseline_week - 12
+		AND baseline_week + 11
 		AND calendar_year = 2020
-  	GROUP BY region, week_number
-),
-region_split AS (
-	SELECT
-		region,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM region_period
-	GROUP BY region
-),
-platform_period AS (
-	SELECT
-		platform,
-		week_number,
-  		SUM(sales) AS total_sales
-	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-		AND calendar_year = 2020
-  	GROUP BY platform, week_number
-),
-platform_split AS (
-	SELECT
-		platform,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM platform_period
-	GROUP BY platform
-),
-age_band_period AS (
-	SELECT
-		age_band,
-		week_number,
-  		SUM(sales) AS total_sales
-	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-		AND calendar_year = 2020
-  	GROUP BY age_band, week_number
-),
-age_band_split AS (
-	SELECT
-		age_band,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM age_band_period
-	GROUP BY age_band
-),
-demographic_period AS (
-	SELECT
-		demographic,
-		week_number,
-  		SUM(sales) AS total_sales
-	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-		AND calendar_year = 2020
-  	GROUP BY demographic, week_number
-),
-demographic_split AS (
-	SELECT
-		demographic,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM demographic_period
-	GROUP BY demographic
-),
-customer_type_period AS (
-	SELECT
-		customer_type,
-		week_number,
-  		SUM(sales) AS total_sales
-	FROM clean_weekly_sales
-	WHERE week_number BETWEEN 12 AND 36
-		AND calendar_year = 2020
-  	GROUP BY customer_type, week_number
-),
-customer_type_split AS (
-	SELECT
-		customer_type,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 12 AND 23) AS sales_before,
-		SUM(total_sales) FILTER (WHERE week_number BETWEEN 25 AND 36) AS sales_after
-	FROM customer_type_period
-	GROUP BY customer_type
+	GROUP BY area, value
 )
 
 SELECT
-	'region' AS area,
-	region AS value,
+	area,
+	value,
 	sales_before,
 	sales_after,
     (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM region_split
-
-UNION ALL
-
-SELECT
-	'platform' AS area,
-	platform AS value,
-	sales_before,
-	sales_after,
-    (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM platform_split
-
-UNION ALL
-
-SELECT
-	'age_band' AS area,
-	age_band AS value,
-	sales_before,
-	sales_after,
-    (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM age_band_split
-
-UNION ALL
-
-SELECT
-	'demographic' AS area,
-	demographic AS value,
-	sales_before,
-	sales_after,
-    (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM demographic_split
-
-UNION ALL
-
-SELECT
-	'customer_type' AS area,
-	customer_type AS value,
-	sales_before,
-	sales_after,
-    (sales_after - sales_before) AS sales_change,
-    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_rate
-FROM customer_type_split
-ORDER BY area, percentage_rate;
+    ROUND(100 * (sales_after - sales_before)::NUMERIC / sales_before, 2) AS percentage_change
+FROM period_sales
+ORDER BY area, value;
