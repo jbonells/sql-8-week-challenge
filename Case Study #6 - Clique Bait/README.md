@@ -20,5 +20,5 @@ In this case study - you are required to support Danny’s vision and analyse hi
 
 ## Entity Relationship Diagram
 <p align="center">
-	<img src="../assets/ERD_6.png" alt="Entity Relationship Diagram">
+	<img src="../assets/ERD_6.png" alt="Entity Relationship Diagram" width="800" height="620">
 </p>
