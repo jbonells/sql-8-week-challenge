@@ -8,7 +8,7 @@ Looking at the `customer_orders` table, we can see that there are missing and nu
 - Replace empty strings ('') or null strings ('null') with `NULL` in the `exclusions` column.
 - Replace empty strings ('') or null strings ('null') with `NULL` in the `extras` column.
 
-````sql
+```sql
 CREATE TEMP TABLE t_customer_orders AS
 SELECT
     order_id,
@@ -18,7 +18,7 @@ SELECT
     NULLIF(NULLIF(extras, 'null'), '') AS extras,
     order_time
 FROM customer_orders;
-`````
+````
 
 ### Table: runner_orders
 
@@ -31,7 +31,7 @@ Our course of action to clean the `runner_orders` table will be create a tempora
 - Cast the `duration` column as **INTEGER**.
 - Replace empty strings ('') or null strings ('null') with `NULL` in the `cancellation` column.
 
-````sql
+```sql
 CREATE TEMP TABLE t_runner_orders AS
 SELECT
     order_id,
@@ -41,7 +41,7 @@ SELECT
     NULLIF(REGEXP_REPLACE(duration, '[^0-9]', '', 'g'), '')::INTEGER AS duration,
     NULLIF(NULLIF(cancellation, 'null'), '') AS cancellation
 FROM runner_orders;
-````
+```
 
 **NOTE:** I have added both temp tables to `schema.sql` to run the solution easily.
 
@@ -50,11 +50,11 @@ FROM runner_orders;
 
 ### 1. How many pizzas were ordered?
 
-````sql
+```sql
 SELECT
 	COUNT(*) AS pizza_order_count
 FROM t_customer_orders;
-````
+```
 
 #### Steps:
 - Apply the **COUNT** aggregate function to tally all rows, representing the total volume of individual pizza orders placed.
@@ -66,11 +66,11 @@ FROM t_customer_orders;
 | 14                |
 
 ### 2. How many unique customer orders were made?
-````sql
+```sql
 SELECT
 	COUNT(DISTINCT order_id) AS unique_order_count
 FROM t_customer_orders;
-````
+```
 
 #### Steps:
 - Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique order identifiers, ensuring orders with multiple pizzas are tallied as a single transaction.
@@ -82,14 +82,14 @@ FROM t_customer_orders;
 | 10                 |
 
 ### 3. How many successful orders were delivered by each runner?
-````sql
+```sql
 SELECT
 	runner_id,
 	COUNT(order_id) AS successful_orders
 FROM t_runner_orders
 WHERE cancellation IS NULL
 GROUP BY runner_id;
-````
+```
 
 #### Steps:
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
@@ -104,7 +104,7 @@ GROUP BY runner_id;
 | 3         | 1                 |
 
 ### 4. How many of each type of pizza was delivered?
-````sql
+```sql
 SELECT
 	pn.pizza_name,
     COUNT(co.pizza_id) AS pizzas_delivered
@@ -116,7 +116,7 @@ INNER JOIN pizza_names pn
 WHERE ro.cancellation IS NULL
 GROUP BY pn.pizza_name
 ORDER BY pn.pizza_name;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -133,7 +133,7 @@ ORDER BY pn.pizza_name;
 | Vegetarian | 3                |
 
 ### 5. How many Vegetarian and Meatlovers were ordered by each customer?
-````sql
+```sql
 SELECT
 	customer_id,
     SUM(CASE WHEN pizza_id = 1 THEN 1 ELSE 0 END) AS meat_lovers,
@@ -141,7 +141,7 @@ SELECT
 FROM t_customer_orders
 GROUP BY customer_id
 ORDER BY customer_id;
-````
+```
 
 #### Steps:
 - Apply a **CASE** statement inside the **SUM()** function to evaluate the total volume of Meatlovers pizzas ordered.
@@ -159,7 +159,7 @@ ORDER BY customer_id;
 | 105         | 0           | 1          |
 
 ### 6. What was the maximum number of pizzas delivered in a single order?
-````sql
+```sql
 SELECT
 	co.order_id,
 	COUNT(co.pizza_id) AS pizzas_delivered
@@ -170,7 +170,7 @@ WHERE ro.cancellation IS NULL
 GROUP BY co.order_id
 ORDER BY pizzas_delivered DESC
 LIMIT 1;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -186,7 +186,7 @@ LIMIT 1;
 | 4        | 3                |
 
 ### 7. For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
-````sql
+```sql
 SELECT
 	co.customer_id,
     SUM(CASE WHEN co.exclusions IS NOT NULL OR co.extras IS NOT NULL THEN 1 ELSE 0 END) AS change,
@@ -197,7 +197,7 @@ INNER JOIN t_runner_orders ro
 WHERE ro.cancellation IS NULL
 GROUP BY co.customer_id
 ORDER BY co.customer_id;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -217,14 +217,14 @@ ORDER BY co.customer_id;
 | 105         | 1      | 0         |
 
 ### 8. How many pizzas were delivered that had both exclusions and extras?
-````sql
+```sql
 SELECT
     SUM(CASE WHEN co.exclusions IS NOT NULL AND co.extras IS NOT NULL THEN 1 ELSE 0 END) AS changed_pizza
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
 	ON co.order_id = ro.order_id
 WHERE ro.cancellation IS NULL;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -237,14 +237,14 @@ WHERE ro.cancellation IS NULL;
 | 1             |
 
 ### 9. What was the total volume of pizzas ordered for each hour of the day?
-````sql
+```sql
 SELECT
     EXTRACT(HOUR FROM order_time) AS order_hour,
     COUNT(order_id) AS total_pizzas
 FROM t_customer_orders
 GROUP BY order_hour
 ORDER BY order_hour;
-````
+```
 
 #### Steps:
 - Use the **EXTRACT(HOUR FROM)** function to pull the hour component from the `order_time` column, assigning the alias `order_hour`.
@@ -263,14 +263,14 @@ ORDER BY order_hour;
 | 23         | 3            |
 
 ### 10. What was the volume of orders for each day of the week?
-````sql
+```sql
 SELECT
     TO_CHAR(order_time, 'FMDay') AS day_of_week,
     COUNT(DISTINCT order_id) AS total_orders
 FROM t_customer_orders
 GROUP BY TO_CHAR(order_time, 'FMDay'), EXTRACT(ISODOW FROM order_time)
 ORDER BY EXTRACT(ISODOW FROM order_time);
-````
+```
 
 #### Steps:
 - Use the **TO_CHAR** function to extract and format `order_time` into the full name of the day of the week.
@@ -290,14 +290,14 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 ## B. Runner and Customer Experience
 
 ### 1. How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
-````sql
+```sql
 SELECT 
     (FLOOR(DATE_PART('day', registration_date - TIMESTAMP '2021-01-01') / 7))::INTEGER + 1 AS registration_week,
     COUNT(runner_id) AS runner_signup
 FROM runners
 GROUP BY registration_week
 ORDER BY registration_week;
-````
+```
 
 #### Steps:
 - Calculate the time elapsed from the anchor date ('2021-01-01') by subtracting **TIMESTAMP** from the `registration_date`.
@@ -321,7 +321,7 @@ ORDER BY registration_week;
 | 3                 | 1             |
 
 ### 2. What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
-````sql
+```sql
 WITH order_time AS (
 	SELECT 
 		co.order_id,
@@ -341,7 +341,7 @@ SELECT
 FROM order_time
 GROUP BY runner_id
 ORDER BY runner_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
@@ -361,7 +361,7 @@ ORDER BY runner_id;
 | 3         | 10.47        |
 
 ### 3. Is there any relationship between the number of pizzas and how long the order takes to prepare?
-````sql
+```sql
 WITH order_time AS (
 	SELECT 
 		co.order_id,
@@ -382,7 +382,7 @@ SELECT
 FROM order_time
 GROUP BY num_pizzas
 ORDER BY num_pizzas;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
@@ -406,7 +406,7 @@ ORDER BY num_pizzas;
 - Ordering two pizzas seems to be the most efficient option whereas ordering just one pizza is the less efficient.
 
 ### 4. What was the average distance travelled for each customer?
-````sql
+```sql
 WITH order_distances AS (
     SELECT DISTINCT
         co.order_id,
@@ -424,7 +424,7 @@ SELECT
 FROM order_distances
 GROUP BY customer_id
 ORDER BY customer_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`order_distances`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
@@ -445,14 +445,14 @@ ORDER BY customer_id;
 | 105         | 25.00            |
 
 ### 5. What was the difference between the longest and shortest delivery times for all orders?
-````sql
+```sql
 SELECT
     MAX(duration) AS longest_delivery,
 	MIN(duration) AS shortest_delivery,
 	MAX(duration) - MIN(duration) AS difference
 FROM t_runner_orders
 WHERE duration IS NOT NULL;
-````
+```
 
 #### Steps:
 - Apply a **WHERE** clause (`duration IS NOT NULL`) to exclude cancelled orders.
@@ -466,7 +466,7 @@ WHERE duration IS NOT NULL;
 | 40               | 10                | 30         |
 
 ### 6. What was the average speed for each runner for each delivery and do you notice any trend for these values?
-````sql
+```sql
 SELECT
     runner_id,
     order_id,
@@ -475,7 +475,7 @@ SELECT
 FROM t_runner_orders
 WHERE duration IS NOT NULL AND distance IS NOT NULL
 ORDER BY runner_id, pickup_time;
-````
+```
 
 #### Steps:
 - Apply a **WHERE** clause (`duration IS NOT NULL` and `distance IS NOT NULL`) to filter out incomplete or cancelled records.
@@ -505,7 +505,7 @@ SELECT
 FROM t_runner_orders
 GROUP BY runner_id
 ORDER BY runner_id;
-````
+```
 
 #### Steps:
 - Group records by `runner_id` to compute the success percentage individually for each runner.
@@ -526,7 +526,7 @@ ORDER BY runner_id;
 ## C. Ingredient Optimisation
 
 ### 1. What are the standard ingredients for each pizza?
-````sql
+```sql
 WITH toppings AS (
     SELECT
         pn.pizza_name,
@@ -545,7 +545,7 @@ INNER JOIN pizza_toppings pt
 	ON t.topping_id = pt.topping_id
 GROUP BY t.pizza_name
 ORDER BY t.pizza_name;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`toppings`) that joins the `pizza_recipes` and `pizza_names` tables on `pizza_id`.
@@ -562,7 +562,7 @@ ORDER BY t.pizza_name;
 | Vegetarian | Cheese, Mushrooms, Onions, Peppers, Tomato Sauce, Tomatoes            |
 
 ### 2. What was the most commonly added extra?
-````sql
+```sql
 WITH extras AS (
     SELECT
         pizza_id,
@@ -580,7 +580,7 @@ INNER JOIN pizza_toppings pt
 GROUP BY pt.topping_name
 ORDER BY times_added DESC
 LIMIT 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`extras`) to process the `t_customer_orders` table.
@@ -597,7 +597,7 @@ LIMIT 1;
 | Bacon        | 4           |
 
 ### 3. What was the most common exclusion?
-````sql
+```sql
 WITH exclusions AS (
     SELECT
         pizza_id,
@@ -615,7 +615,7 @@ INNER JOIN pizza_toppings pt
 GROUP BY pt.topping_name
 ORDER BY times_removed DESC
 LIMIT 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`exclusions`) to process the `t_customer_orders` table.
@@ -636,7 +636,7 @@ LIMIT 1;
 - Meat Lovers - Exclude Beef
 - Meat Lovers - Extra Bacon
 - Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
-````sql
+```sql
 WITH ordered_pizzas AS (
     SELECT 
         ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
@@ -682,7 +682,7 @@ LEFT JOIN exclusions e
 LEFT JOIN additions a
 	ON op.record_id = a.record_id
 ORDER BY op.record_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ordered_pizzas`) to process the `t_customer_orders` table.
@@ -716,7 +716,7 @@ ORDER BY op.record_id;
 
 ### 5. Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 - For example: "Meat Lovers: 2xBacon, Beef, ..., Salami"
-````sql
+```sql
 WITH ordered_pizzas AS (
     SELECT 
 		ROW_NUMBER() OVER (ORDER BY order_id) AS record_id,
@@ -781,7 +781,7 @@ INNER JOIN pizza_names pn
 	ON op.pizza_id = pn.pizza_id
 GROUP BY op.record_id, op.order_id, pn.pizza_name
 ORDER BY op.record_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ordered_pizzas`) to process the `customer_orders` table.
@@ -822,7 +822,7 @@ ORDER BY op.record_id;
 | 10 	   | Meatlovers: 2xBacon, Beef, 2xCheese, Chicken, Pepperoni, Salami                     |
  
 ### 6. What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
-````sql
+```sql
 WITH delivered_pizzas AS (
     SELECT
         ROW_NUMBER() OVER (ORDER BY co.order_id) AS record_id,
@@ -871,7 +871,7 @@ INNER JOIN pizza_toppings pt
 	ON il.topping_id = pt.topping_id
 GROUP BY pt.topping_name
 ORDER BY quantity DESC;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
@@ -910,14 +910,14 @@ ORDER BY quantity DESC;
 ## D. Pricing and Ratings
 
 ### 1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
-````sql
+```sql
 SELECT
 	SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
     ON co.order_id = ro.order_id
 WHERE ro.cancellation IS NULL;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -932,7 +932,7 @@ WHERE ro.cancellation IS NULL;
 
 ### 2. What if there was an additional $1 charge for any pizza extras?
 - Add cheese is $1 extra
-````sql
+```sql
 WITH delivered_pizzas AS (
     SELECT
 		co.pizza_id,
@@ -949,7 +949,7 @@ SELECT
 		+ num_extras
     ) AS revenue
 FROM delivered_pizzas
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
@@ -964,7 +964,7 @@ FROM delivered_pizzas
 | 142     |
 
 ### 3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
-````sql
+```sql
 DROP TABLE IF EXISTS runner_ratings;
 CREATE TABLE runner_ratings (
     order_id INTEGER PRIMARY KEY,
@@ -981,7 +981,7 @@ VALUES
 	(7, 4),
 	(8, 5),
 	(10, 2);
-````
+```
 
 #### Steps:
 - Use **DROP TABLE IF EXISTS** to safely remove any pre-existing `runner_ratings` table, ensuring the schema setup script can be rerun without throw-errors.
@@ -1005,7 +1005,7 @@ VALUES
 - Delivery duration
 - Average speed
 - Total number of pizzas
-````sql
+```sql
 SELECT
     co.customer_id,
     co.order_id,
@@ -1025,7 +1025,7 @@ INNER JOIN runner_ratings rr
 WHERE ro.cancellation IS NULL
 GROUP BY co.customer_id, co.order_id, ro.runner_id, rr.rating, co.order_time, ro.pickup_time, ro.duration, ro.distance
 ORDER BY co.order_id;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
@@ -1050,7 +1050,7 @@ ORDER BY co.order_id;
 | 104         | 10       | 1         | 2      | 2021-01-11 18:34:49 | 2021-01-11 18:50:20 | 16              | 10       | 60.00         | 2            |
 
 ### 5. If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre travelled - how much money does Pizza Runner have left over after these deliveries?
-````sql
+```sql
 WITH total_payouts AS (
     SELECT
 		SUM(distance) * 0.30 AS payout
@@ -1069,7 +1069,7 @@ total_revenue AS (
 SELECT
     ROUND((tr.revenue - tp.payout), 2) AS net_profit
 FROM total_revenue tr, total_payouts tp;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`total_payouts`) to process the `t_runner_orders` table.
@@ -1097,13 +1097,13 @@ One weakness would be that `toppings` stores topping IDs as a delimited string r
 A `pizza_recipe_toppings(pizza_id, topping_id)` table would have avoided this entirely.
 
 ### 2. Write an INSERT statement to demonstrate what would happen if a new Supreme pizza with all the toppings was added to the Pizza Runner menu?
-````sql
+```sql
 INSERT INTO pizza_names (pizza_id, pizza_name)
 VALUES (3, 'Supreme');
 
 INSERT INTO pizza_recipes (pizza_id, toppings)
 VALUES (3, '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12');
-````
+```
 
 #### Steps:
 - Use **INSERT INTO** statements to populate `pizza_names` and `pizza_recipes` tables.
