@@ -2,7 +2,7 @@
 
 ### Based off the 8 sample customers provided in the sample from the subscriptions table, write a brief description about each customer’s onboarding journey.
 - Try to keep it as short as possible - you may also want to run some sort of join to make your explanations a bit easier!
-````sql
+```sql
 SELECT
 	s.customer_id,
     p.plan_id,
@@ -13,7 +13,7 @@ JOIN plans p
 	ON s.plan_id = p.plan_id
 WHERE s.customer_id IN (1,2,11,13,15,16,18,19)
 ORDER BY s.customer_id, s.start_date;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `plans` and `subscriptions` tables.
@@ -53,11 +53,11 @@ ORDER BY s.customer_id, s.start_date;
 ## B. Data Analysis Questions
 
 ### 1. How many customers has Foodie-Fi ever had?
-````sql
+```sql
 SELECT
 	COUNT(DISTINCT customer_id) AS customers
 FROM subscriptions;
-````
+```
 
 #### Steps:
 - Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique customers, ensuring customers with multiple plans are tallied as a single customer.
@@ -69,7 +69,7 @@ FROM subscriptions;
 | 1000      |
 
 ### 2. What is the monthly distribution of trial plan start_date values for our dataset - use the start of the month as the group by value
-````sql
+```sql
 SELECT 
     TO_CHAR(DATE_TRUNC('month', s.start_date), 'FMMonth') AS month_name,
     COUNT(*) AS trials
@@ -79,7 +79,7 @@ INNER JOIN plans p
 WHERE p.plan_name = 'trial'
 GROUP BY month_name, DATE_TRUNC('month', s.start_date)
 ORDER BY DATE_TRUNC('month', s.start_date);
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
@@ -107,7 +107,7 @@ ORDER BY DATE_TRUNC('month', s.start_date);
 | December   | 84     |
 
 ### 3. What plan start_date values occur after the year 2020 for our dataset? Show the breakdown by count of events for each plan_name
-````sql
+```sql
 SELECT
     p.plan_id,
     p.plan_name,
@@ -118,7 +118,7 @@ INNER JOIN plans p
 WHERE s.start_date >= '2021-01-01'
 GROUP BY p.plan_id, p.plan_name
 ORDER BY p.plan_id;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
@@ -136,7 +136,7 @@ ORDER BY p.plan_id;
 | 4       | churn         | 71     |
 
 ### 4. What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
-````sql
+```sql
 SELECT
     COUNT(DISTINCT customer_id) FILTER (WHERE plan_id = 4) AS churned_customers,
     ROUND(
@@ -145,7 +145,7 @@ SELECT
         1
     ) AS churn_percentage
 FROM subscriptions;
-````
+```
 
 #### Steps:
 - Apply conditional aggregation using **COUNT** and **FILTER (WHERE ...)** to count unique customers who cancelled their service.
@@ -159,7 +159,7 @@ FROM subscriptions;
 | 307               | 30.7             |
 
 ### 5. How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
-````sql
+```sql
 WITH ordered_plans AS (
 	SELECT
   		ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS plan_sequence,
@@ -177,7 +177,7 @@ SELECT
     ) AS churn_percentage
 FROM ordered_plans
 WHERE plan_id = 4 AND plan_sequence = 2;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
@@ -193,7 +193,7 @@ WHERE plan_id = 4 AND plan_sequence = 2;
 | 92              | 9                |
 
 ### 6. What is the number and percentage of customer plans after their initial free trial?
-````sql
+```sql
 WITH ordered_plans AS (
 	SELECT
   		ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date) AS plan_sequence,
@@ -216,7 +216,7 @@ INNER JOIN plans p
 WHERE op.plan_sequence = 2
 GROUP BY p.plan_id, p.plan_name
 ORDER BY p.plan_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
@@ -238,7 +238,7 @@ ORDER BY p.plan_id;
 | churn         | 92              | 9.2             |
 
 ### 7. What is the customer count and percentage breakdown of all 5 plan_name values at 2020-12-31?
-````sql
+```sql
 WITH ordered_plans AS (
 	SELECT
   		ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY start_date DESC) AS plan_sequence,
@@ -262,7 +262,7 @@ INNER JOIN plans p
 WHERE op.plan_sequence = 1
 GROUP BY p.plan_id, p.plan_name
 ORDER BY p.plan_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
@@ -286,7 +286,7 @@ ORDER BY p.plan_id;
 | churn         | 236             | 23.6            |
 
 ### 8. How many customers have upgraded to an annual plan in 2020?
-````sql
+```sql
 SELECT
     COUNT(DISTINCT s.customer_id) AS annual_plan_customers
 FROM subscriptions s
@@ -294,7 +294,7 @@ INNER JOIN plans p
 	ON s.plan_id = p.plan_id
 WHERE s.start_date BETWEEN '2020-01-01' AND '2020-12-31'
 	AND p.plan_name = 'pro annual';
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
@@ -307,7 +307,7 @@ WHERE s.start_date BETWEEN '2020-01-01' AND '2020-12-31'
 | 195                   |
 
 ### 9. How many days on average does it take for a customer to an annual plan from the day they join Foodie-Fi?
-````sql
+```sql
 WITH trial_plan_dates AS (
 	SELECT 
 		customer_id, 
@@ -328,7 +328,7 @@ SELECT
 FROM trial_plan_dates tpd
 INNER JOIN annual_plan_dates apd
 	ON tpd.customer_id = apd.customer_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`trial_plan_dates`) to process the `subscriptions` table.
@@ -346,7 +346,7 @@ INNER JOIN annual_plan_dates apd
 | 105          |
 
 ### 10. Can you further breakdown this average value into 30 day periods (i.e. 0-30 days, 31-60 days etc)
-````sql
+```sql
 WITH trial_plan_dates AS (
 	SELECT
 		customer_id,
@@ -379,7 +379,7 @@ SELECT
 FROM customer_durations
 GROUP BY bucket
 ORDER BY bucket;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`trial_plan_dates`) to process the `subscriptions` table.
@@ -405,7 +405,7 @@ ORDER BY bucket;
 | 181+ days    | 38        |
 
 ### 11. How many customers downgraded from a pro monthly to a basic monthly plan in 2020?
-````sql
+```sql
 WITH customer_plans AS (
 	SELECT
 		customer_id,
@@ -421,7 +421,7 @@ FROM customer_plans
 WHERE plan_id = 2
 	AND next_plan_id = 1
     AND next_plan_date BETWEEN '2020-01-01' AND '2020-12-31';
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`customer_plans`) to process the `subscriptions` table.
@@ -444,7 +444,7 @@ WHERE plan_id = 2
 - upgrades from basic to monthly or pro plans are reduced by the current paid amount in that month and start immediately
 - upgrades from pro monthly to pro annual are paid at the end of the current billing period and also starts at the end of the month period
 - once a customer churns they will no longer make payments
-````sql
+```sql
 CREATE TABLE payments AS
 WITH customer_plans AS (
 	SELECT
@@ -488,7 +488,7 @@ SELECT
     ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY payment_date) AS payment_order
 FROM generated_payments
 ORDER BY customer_id, payment_date;
-````
+```
 
 #### Steps:
 - Use **CREATE TABLE AS** to add the resulting query output into a new table named `payments`.
@@ -534,8 +534,8 @@ ORDER BY customer_id, payment_date;
 | 19          | 3       | pro annual    | 2020-08-29   | 199.00 | 3             |
 
 This is the output using the following query to show the 8 customers provided in the sample:
-````sql
+```sql
 SELECT * FROM payments
 WHERE customer_id IN (1,2,11,13,15,16,18,19)
 ORDER BY customer_id, payment_date
-````
+```
