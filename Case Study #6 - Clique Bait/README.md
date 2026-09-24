@@ -1,7 +1,7 @@
 # 💼 Case Study #6 - Clique Bait
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-6">
-		<img src="../assets/case_study_5.png" alt="Case Study #6 - Clique Bait" width="500" height="520">
+		<img src="../assets/case_study_6.png" alt="Case Study #6 - Clique Bait" width="500" height="520">
 	</a>
 </p>
 
