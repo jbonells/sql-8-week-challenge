@@ -1,7 +1,7 @@
 # Questions and Solutions
 
 ### 1. What is the total amount each customer spent at the restaurant?
-````sql
+```sql
 SELECT
 	s.customer_id,
 	SUM(m.price) AS total_sales
@@ -10,7 +10,7 @@ INNER JOIN menu m
 	ON s.product_id = m.product_id
 GROUP BY s.customer_id
 ORDER BY s.customer_id;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
@@ -26,14 +26,14 @@ ORDER BY s.customer_id;
 | C           | 36          |
 
 ### 2. How many days has each customer visited the restaurant?
-````sql
+```sql
 SELECT
 	customer_id, 
 	COUNT(DISTINCT order_date) AS total_visits
 FROM sales
 GROUP BY customer_id
 ORDER BY customer_id;
-````
+```
 
 #### Steps:
 - Group the records by `customer_id` to evaluate visits per individual customer.
@@ -48,7 +48,7 @@ ORDER BY customer_id;
 | C           | 2           |
 
 ### 3. What was the first item from the menu purchased by each customer?
-````sql
+```sql
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
@@ -67,7 +67,7 @@ SELECT DISTINCT
 	product_name
 FROM ranked_sales
 WHERE rank = 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) that joins the `sales` and `menu` tables on `product_id`.
@@ -86,7 +86,7 @@ WHERE rank = 1;
 - Customer A's first order was both curry and sushi.
 
 ### 4. What is the most purchased item on the menu and how many times was it purchased by all customers?
-````sql
+```sql
 SELECT
 	m.product_name,
     COUNT(s.product_id) AS times_purchased
@@ -96,7 +96,7 @@ INNER JOIN menu m
 GROUP BY m.product_name
 ORDER BY times_purchased DESC
 LIMIT 1;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
@@ -111,7 +111,7 @@ LIMIT 1;
 | ramen        | 8               |
 
 ### 5. Which item was the most popular for each customer?
-````sql
+```sql
 WITH ranked_items AS (
 	SELECT
 		s.customer_id,
@@ -133,7 +133,7 @@ SELECT
     order_count
 FROM ranked_items
 WHERE rank = 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ranked_items`) that joins the `sales` and `menu` tables on `product_id`.
@@ -153,7 +153,7 @@ WHERE rank = 1;
 - Customer B's most popular items are ramen, curry, and sushi.
 
 ### 6. Which item was purchased first by the customer after they became a member?
-````sql
+```sql
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
@@ -175,7 +175,7 @@ SELECT DISTINCT
     product_name
 FROM ranked_sales
 WHERE rank = 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) that joins on `product_id` between `sales` and `menu`, and on `customer_id` between `sales` and `members`.
@@ -193,7 +193,7 @@ WHERE rank = 1;
 - Customer C is not a member.
 
 ### 7. Which item was purchased just before the customer became a member?
-````sql
+```sql
 WITH ranked_sales AS (
 	SELECT
 		s.customer_id,
@@ -215,7 +215,7 @@ SELECT
     product_name
 FROM ranked_sales
 WHERE rank = 1;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) that on `product_id` between `sales` and `menu`, and on `customer_id` between `sales` and `members`.
@@ -233,7 +233,7 @@ WHERE rank = 1;
 - Customer A's last order before becoming a member was sushi and curry.
 
 ### 8. What is the total items and amount spent for each member before they became a member?
-````sql
+```sql
 SELECT
 	s.customer_id,
 	COUNT(m.product_name) AS total_items,
@@ -246,7 +246,7 @@ INNER JOIN members mem
 WHERE s.order_date < mem.join_date
 GROUP BY s.customer_id
 ORDER BY s.customer_id ASC;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
@@ -264,7 +264,7 @@ ORDER BY s.customer_id ASC;
 | B           | 3           | 40           |
 
 ### 9.  If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
-````sql
+```sql
 SELECT
     s.customer_id,
     SUM(m.price * 10 * CASE WHEN m.product_name = 'sushi' THEN 2 ELSE 1 END) AS points
@@ -273,7 +273,7 @@ JOIN menu m
 	ON s.product_id = m.product_id
 GROUP BY s.customer_id
 ORDER BY s.customer_id;
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
@@ -289,7 +289,7 @@ ORDER BY s.customer_id;
 | C           | 360          |
 
 ### 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
-````sql
+```sql
 WITH dates AS (
     SELECT 
         customer_id, 
@@ -316,7 +316,7 @@ INNER JOIN dates d
 WHERE s.order_date <= d.end_month
 GROUP BY s.customer_id
 ORDER BY s.customer_id;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`dates`) to compute each customer's 7-day promotional window (`end_week`) and month-end cutoff (`end_month`) using **DATE_TRUNC** and interval arithmetic.
@@ -339,7 +339,7 @@ ORDER BY s.customer_id;
 # Bonus Questions
 
 ### Join All The Things
-````sql
+```sql
 SELECT
 	s.customer_id,
     s.order_date,
@@ -355,7 +355,7 @@ INNER JOIN menu m
 LEFT JOIN members mem
     ON s.customer_id = mem.customer_id
 ORDER BY s.customer_id, s.order_date, m.product_name
-````
+```
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
@@ -382,7 +382,7 @@ ORDER BY s.customer_id, s.order_date, m.product_name
 | C           | 2021-01-07 | ramen        | 12    | N      |
 
 ### Rank All The Things
-````sql
+```sql
 WITH customers AS (
 	SELECT
 		s.customer_id,
@@ -415,7 +415,7 @@ SELECT
     END AS ranking
 FROM customers
 ORDER BY customer_id, order_date, product_name;
-````
+```
 
 #### Steps:
 - Define a Common Table Expression (`customers`) to process the `sales` table.
