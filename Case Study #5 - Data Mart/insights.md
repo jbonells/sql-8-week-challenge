@@ -323,8 +323,8 @@ ORDER BY dimension, retail_sales DESC;
 - (Optional) Order the final dataset ascending by `dimension` and descending by `retail_sales` for structured presentation.
 
 #### Answer:
-| dimension   | value        | retail_sales 	pct_of_retail_sales
-| ----------- | ------------ | -------------- | ------------------- | 
+| dimension   | value        | retail_sales   | pct_of_retail_sales |
+| ----------- | ------------ | -------------- | ------------------- |
 | age_band    | unknown      | 16,067,285,533 | 40.52               |
 | age_band    | Retirees     | 13,005,266,930 | 32.80               |
 | age_band    | Middle Aged  | 6,208,251,884  | 15.66               |
