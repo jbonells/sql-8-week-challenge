@@ -1,102 +1,220 @@
 ## A. Digital Analysis
 
 ### 1. How many users are there?
-````sql
+```sql
 SELECT
-	COUNT(DISTINCT user_id) AS unique_users
+	COUNT(DISTINCT user_id) AS users
 FROM users;
-````
+```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique users.
+- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the total number of unique users.
 - (Optional) Assign the alias `unique_users` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
-| unique_users |
-| ------------ |
-| 500          |
+| users |
+| ----- |
+| 500   |
 
 ### 2. How many cookies does each user have on average?
-````sql
+```sql
+WITH cookies AS(
+	SELECT
+		user_id,
+		COUNT(cookie_id) AS cookie_id_count
+	FROM users
+	GROUP BY user_id
+)
 
-````
+SELECT
+	ROUND(AVG(cookie_id_count), 0) AS avg_cookies
+FROM cookies
+```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`cookies`) querying the `users` table.
+- Group the records by `user_id` to aggregate cookies per user.
+- Apply the **COUNT** aggregate function to calculate the total number of cookies for each user.
+- Apply the **AVG** aggregate function to calculate the average number of cookies per user across the aggregated CTE.
+- Wrap the calculation in **ROUND** to format the average to 0 decimal places.
 
 #### Answer:
-
+| avg_cookies |
+| ----------- |
+| 4           |
 
 ### 3. What is the unique number of visits by all users per month?
-````sql
-
-````
+```sql
+SELECT
+	EXTRACT(MONTH FROM e.event_time) AS month,
+    COUNT(DISTINCT e.visit_id) AS visits
+FROM users u
+INNER JOIN events e
+	ON u.cookie_id = e.cookie_id
+GROUP BY month
+ORDER BY month;
+```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `cookie_id` to connect the `users` and `events` tables.
+- Use **EXTRACT(MONTH FROM ...)** to isolate the numerical month value from the event timestamps.
+- Group records by `month` to aggregate visit counts for each calendar month.
+- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of `visits` per month.
+- (Optional) Order the final dataset in ascending sequence by `month` for structured presentation.
 
 #### Answer:
-
+| month | visits |
+| ----- | ------ |
+| 1     | 876    |
+| 2     | 1488   |
+| 3     | 916    |
+| 4     | 248    |
+| 5     | 36     |
 
 ### 4. What is the number of events for each event type?
-````sql
-
-````
+```sql
+SELECT
+	ei.event_name,
+    COUNT(*) AS event_count
+FROM events e
+INNER JOIN event_identifier ei
+	ON e.event_type = ei.event_type
+GROUP BY ei.event_name
+ORDER BY event_count DESC;
+```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `event_type` to connect the `events` and `event_identifier` tables.
+- Group records by `event_name` to aggregate metrics for each distinct event type.
+- Apply the **COUNT** aggregate function to calculate the total volume of events per group.
+- (Optional) Order the final dataset in descending sequence by `event_count` for structured presentation.
 
 #### Answer:
-
+| event_name    | event_count |
+| ------------- | ----------- |
+| Page View     | 20928       |
+| Add to Cart   | 8451        |
+| Purchase      | 1777        |
+| Ad Impression | 876         |
+| Ad Click      | 702         |
 
 ### 5. What is the percentage of visits which have a purchase event?
-````sql
-
-````
+```sql
+SELECT
+	ROUND(
+		100.0 * COUNT(DISTINCT visit_id) FILTER (WHERE event_type = 3)
+		/ COUNT(DISTINCT visit_id),
+		2
+	) AS purchase_percentage
+FROM events;
+```
 
 #### Steps:
-- 
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate unique purchase visits and promote the calculation to a decimal value.
+- Use **COUNT()** to divide the purchase visits by the total count of unique visits.
+- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
-
+| purchase_percentage |
+| ------------------- |
+| 49.86               |
 
 ### 6. What is the percentage of visits which view the checkout page but do not have a purchase event?
-````sql
+```sql
+WITH visit_flags AS (
+	SELECT 
+		visit_id,
+		COUNT(DISTINCT visit_id) FILTER (WHERE event_type = 1 AND page_id = 12) AS checkout,
+		COUNT(DISTINCT visit_id) FILTER (WHERE event_type = 3) AS purchase
+	FROM events
+	GROUP BY visit_id
+)
 
-````
+SELECT
+	ROUND(
+		100.0 * COUNT(DISTINCT visit_id) FILTER (WHERE checkout = 1 AND purchase = 0)
+		/ COUNT(DISTINCT visit_id) FILTER (WHERE checkout = 1),
+		2
+	) AS percentage_checkout_no_purchase
+FROM visit_flags;
+```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`visit_flags`) querying the `events` table.
+- Group records by `visit_id` to evaluate activity per visit.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to flag visits reaching the checkout page.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to flag visits completing a purchase.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate abandoned checkout visits and promote the calculation to a decimal value.
+- Use **COUNT()** to divide abandoned checkout visits by total checkout visits.
+- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
-
+| percentage_checkout_no_purchase |
+| ------------------------------- |
+| 15.50                           |
 
 ### 7. What are the top 3 pages by number of views?
-````sql
-
-````
+```sql
+SELECT
+	ph.page_name,
+	COUNT(*) AS visits
+FROM events e
+INNER JOIN page_hierarchy ph
+	ON e.page_id = ph.page_id
+WHERE e.event_type = 1
+GROUP BY ph.page_name
+ORDER BY visits DESC
+LIMIT 3;
+```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
+- Apply a **WHERE** clause (`event_type = 1`) to isolate page view events.
+- Group records by `page_name` to aggregate metrics for each distinct page.
+- Use the **COUNT** aggregate function to tally the total volume of visits per page.
+- Order the aggregated results in descending sequence by `visits` to highlight the top pages.
+- Apply **LIMIT** clause to restrict the output to the top 3 most visited pages.
 
 #### Answer:
-
+| page_name    | visits |
+| ------------ | ------ |
+| All Products | 3174   |
+| Checkout     | 2103   |
+| Home Page    | 1782   |
 
 ### 8. What is the number of views and cart adds for each product category?
-````sql
-
-````
+```sql
+SELECT
+	ph.product_category,
+	COUNT(*) FILTER (WHERE e.event_type = 1) AS views,
+	COUNT(*) FILTER (WHERE e.event_type = 2) AS cart_adds
+FROM events e
+INNER JOIN page_hierarchy ph
+	ON e.page_id = ph.page_id
+WHERE ph.product_category IS NOT NULL
+GROUP BY ph.product_category
+ORDER BY ph.product_category;
+```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
+- Apply a **WHERE** clause (`product_category IS NOT NULL`) to exclude non-product page records.
+- Group records by `product_category` to aggregate metrics for each distinct category.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to calculate total page views for each category.
+- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to calculate total cart additions for each category.
+- (Optional) Order the final dataset in ascending sequence by `product_category` for structured presentation.
 
 #### Answer:
-
+| product_category | views | cart_adds |
+| ---------------- | ----- | --------- |
+| Fish             | 4633  | 2789      |
+| Luxury           | 3032  | 1870      |
+| Shellfish        | 6204  | 3792      |
 
 ### 9. What are the top 3 products by purchases?
-````sql
+```sql
 
-````
+```
 
 #### Steps:
 - 
