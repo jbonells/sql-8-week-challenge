@@ -213,10 +213,48 @@ ORDER BY ph.product_category;
 
 ### 9. What are the top 3 products by purchases?
 ```sql
+WITH purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+),
+product_cart_adds AS (
+	SELECT
+		e.visit_id,
+        ph.page_name
+	FROM events e
+	INNER JOIN page_hierarchy ph
+		ON e.page_id = ph.page_id
+	WHERE ph.product_category IS NOT NULL
+		AND e.event_type = 2
+)
 
+SELECT
+	pca.page_name AS product,
+	COUNT(*) AS purchases
+FROM product_cart_adds pca
+INNER JOIN purchase_visits pv
+	ON pca.visit_id = pv.visit_id
+GROUP BY pca.page_name
+ORDER BY purchases DESC
+LIMIT 3;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`purchase_visits`) querying the `events` table.
+- Use **SELECT DISTINCT** with a **WHERE** clause (`event_type = 3`) to isolate unique purchase visits.
+- Define a Common Table Expression (`product_cart_adds`) that joins the `events` and `page_hierarchy` tables on `page_id`.
+- Apply a **WHERE** clause (`product_category IS NOT NULL AND event_type = 2`) to isolate product cart additions.
+- Use an **INNER JOIN** on `visit_id` to connect the `product_cart_adds` and `purchase_visits` CTEs.
+- Group records by `page_name` to aggregate metrics for each distinct product.
+- Use the **COUNT** aggregate function to tally total successful purchases per product.
+- Order the aggregated results in descending sequence by `purchases` to highlight top products.
+- Apply **LIMIT** clause to restrict the output to the top 3 most purchased products.
 
 #### Answer:
+| product | purchases |
+| ------- | --------- |
+| Lobster | 754       |
+| Oyster  | 726       |
+| Crab    | 719       |

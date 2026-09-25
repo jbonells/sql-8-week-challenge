@@ -94,3 +94,29 @@ GROUP BY ph.product_category
 ORDER BY ph.product_category;
 
 -- 9. What are the top 3 products by purchases?
+WITH purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+),
+product_cart_adds AS (
+	SELECT
+		e.visit_id,
+        ph.page_name
+	FROM events e
+	INNER JOIN page_hierarchy ph
+		ON e.page_id = ph.page_id
+	WHERE ph.product_category IS NOT NULL
+		AND e.event_type = 2
+)
+
+SELECT
+	pca.page_name AS product,
+	COUNT(*) AS purchases
+FROM product_cart_adds pca
+INNER JOIN purchase_visits pv
+	ON pca.visit_id = pv.visit_id
+GROUP BY pca.page_name
+ORDER BY purchases DESC
+LIMIT 3;
