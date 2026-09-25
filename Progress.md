@@ -6,6 +6,6 @@
 | 03 | **Foodie-Fi**                  | 🟢 Completed   | Subscription metrics, customer churn, customer journey tracking (`LEAD`, `LAG`)  |
 | 04 | **Data Bank**                  | 🟢 Completed   | Customer transactions, data re-allocation, regional metrics                      |
 | 05 | **Data Mart**                  | 🟢 Completed   | Data modification, pre/post comparative analysis                                 |
-| 06 | **Clique Bait**                | 🟡 In Progress | Digital footprint analysis, funnel conversion metrics                            |
-| 07 | **Balanced Tree Clothing Co.** | ⚪ Planned     | High-level product metrics, transaction analysis                                 |
+| 06 | **Clique Bait**                | 🟢 Completed   | Digital footprint analysis, funnel conversion metrics                            |
+| 07 | **Balanced Tree Clothing Co.** | 🟡 In Progress | High-level product metrics, transaction analysis                                 |
 | 08 | **Fresh Segments**             | ⚪ Planned     | Interest metrics, metrics aggregation                                            |
