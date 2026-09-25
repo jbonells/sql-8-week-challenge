@@ -535,8 +535,6 @@ ORDER BY year;
 | 2019 | 2,249,989,796          | 2,252,326,390         | 2,336,594              | 0.10                        | 6,883,386,397            | 6,862,646,103           | -20,740,294              | -0.30                         |
 | 2020 | 2,345,878,357          | 2,318,994,169         | -26,884,188            | -1.15                       | 7,126,273,147            | 6,973,947,753           | -152,325,394             | -2.14                         |
 
-- The 2018's 12-week 'before' period contains only 11 weeks of data (the dataset starts at week 13 that year), so its 12-week change isn't directly comparable with 2019 and 2020.
-
 
 ## D. Bonus Question
 Which areas of the business have the highest negative impact in sales metrics performance in 2020 for the 12 week before and after period?
