@@ -258,3 +258,246 @@ LIMIT 3;
 | Lobster | 754       |
 | Oyster  | 726       |
 | Crab    | 719       |
+
+
+## B. Product Funnel Analysis
+
+### Using a single SQL query - create a new output table which has the following details:
+- How many times was each product viewed?
+- How many times was each product added to cart?
+- How many times was each product added to a cart but not purchased (abandoned)?
+- How many times was each product purchased?
+```sql
+CREATE VIEW product_funnel AS
+WITH product_info AS (
+    SELECT
+        e.visit_id,
+        e.event_type,
+        ph.page_name
+    FROM events e
+    INNER JOIN page_hierarchy ph
+        ON e.page_id = ph.page_id
+    WHERE ph.product_category IS NOT NULL
+),
+purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+)
+
+SELECT
+    pi.page_name AS product,
+    COUNT(*) FILTER (WHERE pi.event_type = 1) AS views,
+    COUNT(*) FILTER (WHERE pi.event_type = 2) AS cart_adds,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NULL) AS abandoned,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NOT NULL) AS purchases
+FROM product_info pi
+LEFT JOIN purchase_visits pv
+	ON pi.visit_id = pv.visit_id
+GROUP BY product
+ORDER BY product;
+```
+
+#### Steps:
+- Use **CREATE VIEW** to create a view named `product_funnel` to store the output of the funnel transformation.
+- Define a Common Table Expression (`product_info`) that joins the `events` and `page_hierarchy` tables on `page_id`.
+- Apply a **WHERE** clause (`product_category IS NOT NULL`) to isolate product-related events.
+- Define a Common Table Expression (`purchase_visits`) querying the `events` table.
+- Use **SELECT DISTINCT** with a **WHERE** clause (`event_type = 3`) to isolate unique purchase visits.
+- Use a **LEFT JOIN** on `visit_id` to connect the `product_info` and `purchase_visits` CTEs.
+- Group records by `product` to aggregate metrics per product.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally total product page views.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally total product cart additions.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NULL`) to tally cart additions that were abandoned.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NOT NULL`) to tally cart additions that resulted in a completed purchase.
+- (Optional) Order the final dataset in ascending sequence by `product` for structured presentation.
+
+#### Answer:
+| product        | views | cart_adds | abandoned | purchases |
+| -------------- | ----- | --------- | --------- | --------- |
+| Abalone        | 1525  | 932       | 233       | 699       |
+| Black Truffle  | 1469  | 924       | 217       | 707       |
+| Crab           | 1564  | 949       | 230       | 719       |
+| Kingfish       | 1559  | 920       | 213       | 707       |
+| Lobster        | 1547  | 968       | 214       | 754       |
+| Oyster         | 1568  | 943       | 217       | 726       |
+| Russian Caviar | 1563  | 946       | 249       | 697       |
+| Salmon         | 1559  | 938       | 227       | 711       |
+| Tuna           | 1515  | 931       | 234       | 697       |
+
+### Additionally, create another table which further aggregates the data for the above points but this time for each product category instead of individual products.
+```sql
+CREATE VIEW category_funnel AS
+WITH product_info AS (
+    SELECT
+        e.visit_id,
+        e.event_type,
+        ph.product_category
+    FROM events e
+    INNER JOIN page_hierarchy ph
+        ON e.page_id = ph.page_id
+    WHERE ph.product_category IS NOT NULL
+),
+purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+)
+
+SELECT
+    pi.product_category,
+    COUNT(*) FILTER (WHERE pi.event_type = 1) AS views,
+    COUNT(*) FILTER (WHERE pi.event_type = 2) AS cart_adds,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NULL) AS abandoned,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NOT NULL) AS purchases
+FROM product_info pi
+LEFT JOIN purchase_visits pv
+	ON pi.visit_id = pv.visit_id
+GROUP BY product_category
+ORDER BY product_category;
+```
+
+#### Steps:
+- Use **CREATE VIEW** to create a view named `category_funnel` to store the output of the funnel transformation.
+- Define a Common Table Expression (`product_info`) that joins the `events` and `page_hierarchy` tables on `page_id`.
+- Apply a **WHERE** clause (`product_category IS NOT NULL`) to isolate product-related events.
+- Define a Common Table Expression (`purchase_visits`) querying the `events` table.
+- Use **SELECT DISTINCT** with a **WHERE** clause (`event_type = 3`) to isolate unique purchase visits.
+- Use a **LEFT JOIN** on `visit_id` to connect the `product_info` and `purchase_visits` CTEs.
+- Group records by `product_category` to aggregate metrics per product category.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally total product page views for each category.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally total product cart additions for each category.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NULL`) to tally cart additions that were abandoned.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NOT NULL`) to tally cart additions that resulted in a completed purchase.
+- (Optional) Order the final dataset in ascending sequence by `product_category` for structured presentation.
+
+#### Answer:
+| product_category | views | cart_adds | abandoned | purchases |
+| ---------------- | ----- | --------- | --------- | --------- |
+| Fish             | 4633  | 2789      | 674       | 2115      |
+| Luxury           | 3032  | 1870      | 466       | 1404      |
+| Shellfish        | 6204  | 3792      | 894       | 2898      |
+
+### Use your 2 new output tables - answer the following questions:
+**NOTE:** I have added both views to `schema.sql` to run the solution easily.
+
+### 1. Which product had the most views, cart adds and purchases?
+```sql
+SELECT * FROM (
+    SELECT
+		'Most Views' AS metric,
+		product,
+		views AS value
+    FROM product_funnel
+    ORDER BY views DESC
+    LIMIT 1
+) t1
+
+UNION ALL
+
+SELECT * FROM (
+    SELECT
+	'Most Cart Adds' AS metric,
+	product,
+	cart_adds AS value
+    FROM product_funnel
+    ORDER BY cart_adds DESC
+    LIMIT 1
+) t2
+
+UNION ALL
+
+SELECT * FROM (
+    SELECT
+		'Most Purchases' AS metric,
+		product,
+		purchases AS value
+    FROM product_funnel
+    ORDER BY purchases DESC
+    LIMIT 1
+) t3;
+```
+
+#### Steps:
+- Query the `product_funnel` view to extract the top product by views, ordering by `views` DESC with a LIMIT 1 clause.
+- Apply **UNION ALL** to combine the top views result with the top cart adds result.
+- Query the `product_funnel` view to extract the top product by cart additions, ordering by `cart_adds` DESC with a LIMIT 1 clause.
+- Apply **UNION ALL** to combine the previous results with the top purchases result.
+- Query the `product_funnel` view to extract the top product by purchases, ordering by `purchases` DESC with a LIMIT 1 clause.
+
+#### Answer:
+| metric         | product | value |
+| -------------- | ------- | ----- |
+| Most Views     | Oyster  | 1568  |
+| Most Cart Adds | Lobster | 968   |
+| Most Purchases | Lobster | 754   |
+
+### 2. Which product was most likely to be abandoned?
+```sql
+SELECT
+	product,
+	abandoned,
+	cart_adds,
+	ROUND(100.0 * abandoned / cart_adds, 2) AS abandon_rate_pct
+FROM product_funnel
+ORDER BY abandon_rate_pct DESC
+LIMIT 1;
+```
+
+#### Steps:
+- Query the `product_funnel` view.
+- Multiply `abandoned` by 100.0 to promote the calculation to a decimal value and divide by `cart_adds` to calculate the abandonment proportion.
+- Apply **ROUND()** to format the resulting metric to two decimal places.
+- Order the dataset in descending sequence by `abandon_rate_pct` to highlight the highest abandonment rate.
+- Apply a **LIMIT** clause to isolate the single product with the highest cart abandonment percentage.
+
+#### Answer:
+| product        | abandoned | cart_adds | abandon_rate_pct |
+| -------------- | --------- | --------- | ---------------- |
+| Russian Caviar | 249       | 946       | 26.32            |
+
+### 3. Which product had the highest view to purchase percentage?
+```sql
+SELECT
+	product,
+	views,
+	purchases,
+	ROUND(100.0 * purchases / views, 2) AS view_to_purchase_pct
+FROM product_funnel
+ORDER BY view_to_purchase_pct DESC
+LIMIT 1;
+```
+
+#### Steps:
+- Query the `product_funnel` view.
+- Multiply `purchases` by 100.0 to promote the calculation to a decimal value and divide by `views` to calculate the conversion proportion.
+- Apply **ROUND()** to format the resulting conversion metric to two decimal places.
+- Order the dataset in descending sequence by `view_to_purchase_pct` to highlight the highest purchase rate.
+- Apply a **LIMIT** clause to isolate the single product with the highest view-to-purchase percentage.
+
+#### Answer:
+
+
+### 4. What is the average conversion rate from view to cart add?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 5. What is the average conversion rate from cart add to purchase?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+

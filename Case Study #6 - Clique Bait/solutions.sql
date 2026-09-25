@@ -120,3 +120,127 @@ INNER JOIN purchase_visits pv
 GROUP BY pca.page_name
 ORDER BY purchases DESC
 LIMIT 3;
+
+
+-- B. Product Funnel Analysis
+
+-- Using a single SQL query - create a new output table which has the following details:
+-- - How many times was each product viewed?
+-- - How many times was each product added to cart?
+-- - How many times was each product added to a cart but not purchased (abandoned)?
+-- - How many times was each product purchased?
+CREATE VIEW product_funnel AS
+WITH product_info AS (
+    SELECT
+        e.visit_id,
+        e.event_type,
+        ph.page_name
+    FROM events e
+    INNER JOIN page_hierarchy ph
+        ON e.page_id = ph.page_id
+    WHERE ph.product_category IS NOT NULL
+),
+purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+)
+
+SELECT
+    pi.page_name AS product,
+    COUNT(*) FILTER (WHERE pi.event_type = 1) AS views,
+    COUNT(*) FILTER (WHERE pi.event_type = 2) AS cart_adds,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NULL) AS abandoned,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NOT NULL) AS purchases
+FROM product_info pi
+LEFT JOIN purchase_visits pv
+	ON pi.visit_id = pv.visit_id
+GROUP BY product
+ORDER BY product;
+
+-- Additionally, create another table which further aggregates the data for the above points but this time for each product category instead of individual products.
+CREATE VIEW category_funnel AS
+WITH product_info AS (
+    SELECT
+        e.visit_id,
+        e.event_type,
+        ph.product_category
+    FROM events e
+    INNER JOIN page_hierarchy ph
+        ON e.page_id = ph.page_id
+    WHERE ph.product_category IS NOT NULL
+),
+purchase_visits AS (
+	SELECT
+		DISTINCT visit_id
+	FROM events
+	WHERE event_type = 3
+)
+
+SELECT
+    pi.product_category,
+    COUNT(*) FILTER (WHERE pi.event_type = 1) AS views,
+    COUNT(*) FILTER (WHERE pi.event_type = 2) AS cart_adds,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NULL) AS abandoned,
+    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NOT NULL) AS purchases
+FROM product_info pi
+LEFT JOIN purchase_visits pv
+	ON pi.visit_id = pv.visit_id
+GROUP BY product_category
+ORDER BY product_category;
+
+-- Use your 2 new output tables - answer the following questions:
+
+-- 1. Which product had the most views, cart adds and purchases?
+SELECT * FROM (
+    SELECT
+		'Most Views' AS metric,
+		product,
+		views AS value
+    FROM product_funnel
+    ORDER BY views DESC
+    LIMIT 1
+) t1
+
+UNION ALL
+
+SELECT * FROM (
+    SELECT
+	'Most Cart Adds' AS metric,
+	product,
+	cart_adds AS value
+    FROM product_funnel
+    ORDER BY cart_adds DESC
+    LIMIT 1
+) t2
+
+UNION ALL
+
+SELECT * FROM (
+    SELECT
+		'Most Purchases' AS metric,
+		product,
+		purchases AS value
+    FROM product_funnel
+    ORDER BY purchases DESC
+    LIMIT 1
+) t3;
+
+-- 2. Which product was most likely to be abandoned?
+SELECT
+	product,
+	abandoned,
+	cart_adds,
+	ROUND(100.0 * abandoned / cart_adds, 2) AS abandon_rate_pct
+FROM product_funnel
+ORDER BY abandon_rate_pct DESC
+LIMIT 1;
+
+-- 3. Which product had the highest view to purchase percentage?
+
+
+-- 4. What is the average conversion rate from view to cart add?
+
+
+-- 5. What is the average conversion rate from cart add to purchase?
