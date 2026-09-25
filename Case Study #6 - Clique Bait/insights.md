@@ -516,7 +516,7 @@ FROM product_funnel;
 | 75.93                      |
 
 
-## C. PCampaigns Analysis
+## C. Campaigns Analysis
 
 ### Generate a table that has 1 single row for every unique visit_id record and has the following columns:
 - `user_id`
@@ -530,10 +530,83 @@ FROM product_funnel;
 - `click`: count of ad clicks for each visit
 - (Optional column) `cart_products`: a comma separated text value with products added to the cart sorted by the order they were added to the cart (hint: use the `sequence_number`)
 ```sql
+WITH aggregates AS(
+	SELECT
+		u.user_id,
+		e.visit_id,
+		MIN(e.event_time) AS visit_start_time,
+		COUNT(*) FILTER (WHERE e.event_type = 1) AS page_views,
+		COUNT(*) FILTER (WHERE e.event_type = 2) AS cart_adds,
+		MAX(CASE WHEN e.event_type = 3 THEN 1 ELSE 0 END) AS purchase,
+		COUNT(*) FILTER (WHERE e.event_type = 4) AS impression,
+		COUNT(*) FILTER (WHERE e.event_type = 5) AS click,
+		STRING_AGG(ph.page_name, ', ' ORDER BY e.sequence_number) FILTER (WHERE e.event_type = 2) AS cart_products
+	FROM users u
+	INNER JOIN events e
+		ON u.cookie_id = e.cookie_id
+	LEFT JOIN page_hierarchy ph
+		ON e.page_id = ph.page_id
+	GROUP BY u.user_id, e.visit_id
+)
 
+SELECT
+	a.user_id,
+	a.visit_id,
+	a.visit_start_time,
+	a.page_views,
+	a.cart_adds,
+	a.purchase,
+	ci.campaign_name,
+	a.impression,
+	a.click,
+    a.cart_products
+FROM aggregates a
+LEFT JOIN campaign_identifier ci
+	ON visit_start_time::DATE BETWEEN ci.start_date AND ci.end_date
+ORDER BY a.user_id;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`aggregates`) that joins the `users` and `events` tables on `cookie_id`, with a **LEFT JOIN** to `page_hierarchy` on `page_id`.
+- Group records by `user_id` and `visit_id` to aggregate visit-level user behaviour.
+- Apply the **MIN()** aggregate function to extract the earliest event timestamp per visit.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally page views.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally cart additions.
+- Apply a **CASE** statement inside the **MAX()** aggregate function to create a binary indicator flag for completed purchases.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 4`) to tally ad impressions.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 5`) to tally ad clicks.
+- Apply **STRING_AGG()** ordered by `sequence_number` with a **FILTER (WHERE ...)** clause (`event_type = 2`) to construct a comma-separated list of added products.
+- Use a **LEFT JOIN** that joins the `aggregates` CTE and the `campaign_identifier` table with a **WHERE** clause (`visit_start_time::DATE BETWEEN start_date AND end_date`) to map matching marketing campaigns.
+- (Optional) Order the final dataset in ascending sequence by `user_id` for structured presentation.
 
 #### Answer:
+| user_id | visit_id | visit_start_time           | page_views | cart_adds | purchase | campaign_name                     | impression | click | cart_products                                                                         |
+| ------- | -------- | -------------------------- | ---------- | --------- | -------- | --------------------------------- | ---------- | ----- | ------------------------------------------------------------------------------------- |
+| 1       | 02a5d5   | 2020-02-26 16:57:26.260871 | 4          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
+| 1       | 0826dc   | 2020-02-26 05:58:37.918618 | 1          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
+| 1       | 0fc437   | 2020-02-04 17:49:49.602976 | 10         | 6         | 1        | Half Off - Treat Your Shellf(ish) | 1          | 1     | Tuna, Russian Caviar, Black Truffle, Abalone, Crab, Oyster                            |
+| 1       | 30b94d   | 2020-03-15 13:12:54.023936 | 9          | 7         | 1        | Half Off - Treat Your Shellf(ish) | 1          | 1     | Salmon, Kingfish, Tuna, Russian Caviar, Abalone, Lobster, Crab                        |
+| 1       | 41355d   | 2020-03-25 00:11:17.860655 | 6          | 1         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Lobster                                                                               |
+| 1       | ccf365   | 2020-02-04 19:16:09.182546 | 7          | 3         | 1        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Lobster, Crab, Oyster                                                                 |
+| 1       | eaffde   | 2020-03-25 20:06:32.342989 | 10         | 8         | 1        | Half Off - Treat Your Shellf(ish) | 1          | 1     | Salmon, Tuna, Russian Caviar, Black Truffle, Abalone, Lobster, Crab, Oyster           |
+| 1       | f7c798   | 2020-03-15 02:23:26.312543 | 9          | 3         | 1        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Russian Caviar, Crab, Oyster                                                          |
+| 2       | 0635fb   | 2020-02-16 06:42:42.73573  | 9          | 4         | 1        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Salmon, Kingfish, Abalone, Crab                                                       |
+| 2       | 1f1198   | 2020-02-01 21:51:55.078775 | 1          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
+| 2       | 3b5871   | 2020-01-18 10:16:32.158475 | 9          | 6         | 1        | 25% Off - Living The Lux Life     | 1          | 1     | Salmon, Kingfish, Russian Caviar, Black Truffle, Lobster, Oyster                      |
+| 2       | 49d73d   | 2020-02-16 06:21:27.138532 | 11         | 9         | 1        | Half Off - Treat Your Shellf(ish) | 1          | 1     | Salmon, Kingfish, Tuna, Russian Caviar, Black Truffle, Abalone, Lobster, Crab, Oyster |
+| 2       | 910d9a   | 2020-02-01 10:40:46.875968 | 8          | 1         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Abalone                                                                               |
+| 2       | c5c0ee   | 2020-01-18 10:35:22.765382 | 1          | 0         | 0        | 25% Off - Living The Lux Life     | 0          | 0     | null                                                                                  |
+| 2       | d58cbd   | 2020-01-18 23:40:54.761906 | 8          | 4         | 0        | 25% Off - Living The Lux Life     | 0          | 0     | Kingfish, Tuna, Abalone, Crab                                                         |
+| 2       | e26a84   | 2020-01-18 16:06:40.90728  | 6          | 2         | 1        | 25% Off - Living The Lux Life     | 0          | 0     | Salmon, Oyster                                                                        |
+| 3       | 25502e   | 2020-02-21 11:26:15.353389 | 1          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
+| 3       | 76ee84   | 2020-05-28 20:11:54.997406 | 7          | 3         | 1        | null                              | 0          | 0     | Salmon, Lobster, Crab                                                                 |
+| 3       | 791afc   | 2020-04-29 00:37:16.741118 | 8          | 2         | 1        | null                              | 0          | 0     | Salmon, Oyster                                                                        |
+| 3       | 7e89a0   | 2020-05-28 10:57:51.749847 | 9          | 6         | 0        | null                              | 1          | 1     | Salmon, Tuna, Russian Caviar, Black Truffle, Lobster, Crab                            |
+| 3       | 80e2fe   | 2020-04-08 04:08:00.231658 | 10         | 5         | 1        | null                              | 0          | 0     | Salmon, Tuna, Russian Caviar, Abalone, Oyster                                         |
+| 3       | 8902ad   | 2020-04-29 22:56:53.062046 | 10         | 6         | 0        | null                              | 1          | 1     | Russian Caviar, Black Truffle, Abalone, Lobster, Crab, Oyster                         |
+| 3       | 9a2f24   | 2020-02-21 03:19:10.032455 | 6          | 2         | 1        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Kingfish, Black Truffle                                                               |
+| 3       | bf200a   | 2020-03-11 04:10:26.708385 | 7          | 2         | 1        | Half Off - Treat Your Shellf(ish) | 0          | 0     | Salmon, Crab                                                                          |
+| 3       | dda9ae   | 2020-04-08 18:24:44.8597   | 10         | 8         | 1        | null                              | 1          | 1     | Salmon, Tuna, Russian Caviar, Black Truffle, Abalone, Lobster, Crab, Oyster           |
+| 3       | eb13cd   | 2020-03-11 21:36:37.222763 | 1          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
+
+- I am only showing the first 3 users for reference.

@@ -254,7 +254,7 @@ SELECT
 FROM product_funnel;
 
 
--- C. PCampaigns Analysis
+-- C. Campaigns Analysis
 
 -- Generate a table that has 1 single row for every unique visit_id record and has the following columns:
 -- - user_id
@@ -267,3 +267,37 @@ FROM product_funnel;
 -- - impression: count of ad impressions for each visit
 -- - click: count of ad clicks for each visit
 -- - (Optional column) cart_products: a comma separated text value with products added to the cart sorted by the order they were added to the cart (hint: use the sequence_number)
+WITH aggregates AS(
+	SELECT
+		u.user_id,
+		e.visit_id,
+		MIN(e.event_time) AS visit_start_time,
+		COUNT(*) FILTER (WHERE e.event_type = 1) AS page_views,
+		COUNT(*) FILTER (WHERE e.event_type = 2) AS cart_adds,
+		MAX(CASE WHEN e.event_type = 3 THEN 1 ELSE 0 END) AS purchase,
+		COUNT(*) FILTER (WHERE e.event_type = 4) AS impression,
+		COUNT(*) FILTER (WHERE e.event_type = 5) AS click,
+		STRING_AGG(ph.page_name, ', ' ORDER BY e.sequence_number) FILTER (WHERE e.event_type = 2) AS cart_products
+	FROM users u
+	INNER JOIN events e
+		ON u.cookie_id = e.cookie_id
+	LEFT JOIN page_hierarchy ph
+		ON e.page_id = ph.page_id
+	GROUP BY u.user_id, e.visit_id
+)
+
+SELECT
+	a.user_id,
+	a.visit_id,
+	a.visit_start_time,
+	a.page_views,
+	a.cart_adds,
+	a.purchase,
+	ci.campaign_name,
+	a.impression,
+	a.click,
+    a.cart_products
+FROM aggregates a
+LEFT JOIN campaign_identifier ci
+	ON visit_start_time::DATE BETWEEN ci.start_date AND ci.end_date
+ORDER BY a.user_id;
