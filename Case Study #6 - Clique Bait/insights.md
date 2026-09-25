@@ -438,8 +438,6 @@ SELECT * FROM (
 ```sql
 SELECT
 	product,
-	abandoned,
-	cart_adds,
 	ROUND(100.0 * abandoned / cart_adds, 2) AS abandon_rate_pct
 FROM product_funnel
 ORDER BY abandon_rate_pct DESC
@@ -454,16 +452,14 @@ LIMIT 1;
 - Apply a **LIMIT** clause to isolate the single product with the highest cart abandonment percentage.
 
 #### Answer:
-| product        | abandoned | cart_adds | abandon_rate_pct |
-| -------------- | --------- | --------- | ---------------- |
-| Russian Caviar | 249       | 946       | 26.32            |
+| product        | abandon_rate_pct |
+| -------------- | ---------------- |
+| Russian Caviar | 26.32            |
 
 ### 3. Which product had the highest view to purchase percentage?
 ```sql
 SELECT
 	product,
-	views,
-	purchases,
 	ROUND(100.0 * purchases / views, 2) AS view_to_purchase_pct
 FROM product_funnel
 ORDER BY view_to_purchase_pct DESC
@@ -478,20 +474,61 @@ LIMIT 1;
 - Apply a **LIMIT** clause to isolate the single product with the highest view-to-purchase percentage.
 
 #### Answer:
-
+| product | view_to_purchase_pct |
+| ------- | -------------------- |
+| Lobster | 48.74                |
 
 ### 4. What is the average conversion rate from view to cart add?
 ```sql
-
+SELECT
+	ROUND(AVG(100.0 * cart_adds / views), 2) AS avg_view_to_cart_ratio
+FROM product_funnel;
 ```
 
 #### Steps:
-- 
+- Query the `product_funnel` view.
+- Multiply `cart_adds` by 100.0 to promote the calculation to a decimal value, divide by `views` per product.
+- Apply **AVG()** wrapped in **ROUND()** to compute the unweighted mean view-to-cart conversion ratio rounded to two decimal places.
 
 #### Answer:
+| avg_view_to_cart_ratio |
+| ---------------------- |
+| 60.95                  |
 
+- The average view-to-cart-add conversion rate is 60.95% (mean of each product's individual rate) and 60.93% (pooled rate: total cart adds ÷ total views).
+- The two are nearly identical, indicating view traffic is fairly evenly distributed across products — no single product disproportionately skews the average.
 
 ### 5. What is the average conversion rate from cart add to purchase?
+```sql
+SELECT
+	ROUND(AVG(100.0 * purchases / cart_adds), 2) AS avg_cart_to_purchase_ratio
+FROM product_funnel;
+```
+
+#### Steps:
+- Query the `product_funnel` view.
+- Multiply `purchases` by 100.0 to promote the calculation to a decimal value, divide by `cart_adds` per product.
+- Apply **AVG()** wrapped in **ROUND()** to compute the unweighted mean cart-to-purchase conversion ratio rounded to two decimal places.
+
+#### Answer:
+| avg_cart_to_purchase_ratio |
+| -------------------------- |
+| 75.93                      |
+
+
+## C. PCampaigns Analysis
+
+### Generate a table that has 1 single row for every unique visit_id record and has the following columns:
+- `user_id`
+- `visit_id`
+- `visit_start_time`: the earliest `event_time` for each visit
+- `page_views`: count of page views for each visit
+- `cart_adds`: count of product cart add events for each visit
+- `purchase`: 1/0 flag if a purchase event exists for each visit
+- `campaign_name`: map the visit to a campaign if the `visit_start_time` falls between the `start_date` and `end_date`
+- `impression`: count of ad impressions for each visit
+- `click`: count of ad clicks for each visit
+- (Optional column) `cart_products`: a comma separated text value with products added to the cart sorted by the order they were added to the cart (hint: use the `sequence_number`)
 ```sql
 
 ```
@@ -500,4 +537,3 @@ LIMIT 1;
 - 
 
 #### Answer:
-

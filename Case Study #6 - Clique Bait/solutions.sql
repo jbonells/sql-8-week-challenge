@@ -230,17 +230,40 @@ SELECT * FROM (
 -- 2. Which product was most likely to be abandoned?
 SELECT
 	product,
-	abandoned,
-	cart_adds,
 	ROUND(100.0 * abandoned / cart_adds, 2) AS abandon_rate_pct
 FROM product_funnel
 ORDER BY abandon_rate_pct DESC
 LIMIT 1;
 
 -- 3. Which product had the highest view to purchase percentage?
-
+SELECT
+	product,
+	ROUND(100.0 * purchases / views, 2) AS view_to_purchase_pct
+FROM product_funnel
+ORDER BY view_to_purchase_pct DESC
+LIMIT 1;
 
 -- 4. What is the average conversion rate from view to cart add?
-
+SELECT
+	ROUND(AVG(100.0 * cart_adds / views), 2) AS avg_view_to_cart_ratio
+FROM product_funnel;
 
 -- 5. What is the average conversion rate from cart add to purchase?
+SELECT
+	ROUND(AVG(100.0 * purchases / cart_adds), 2) AS avg_cart_to_purchase_ratio
+FROM product_funnel;
+
+
+-- C. PCampaigns Analysis
+
+-- Generate a table that has 1 single row for every unique visit_id record and has the following columns:
+-- - user_id
+-- - visit_id
+-- - visit_start_time: the earliest event_time for each visit
+-- - page_views: count of page views for each visit
+-- - cart_adds: count of product cart add events for each visit
+-- - purchase: 1/0 flag if a purchase event exists for each visit
+-- - campaign_name: map the visit to a campaign if the visit_start_time falls between the start_date and end_date
+-- - impression: count of ad impressions for each visit
+-- - click: count of ad clicks for each visit
+-- - (Optional column) cart_products: a comma separated text value with products added to the cart sorted by the order they were added to the cart (hint: use the sequence_number)
