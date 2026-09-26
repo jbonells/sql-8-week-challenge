@@ -350,7 +350,7 @@ ORDER BY runner_id;
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
 - Apply the **AVG()** aggregate function, grouping the records by `runner_id` to calculate the metric per runner.
 - Cast the resulting floating-point average to **NUMERIC** to avoid errors.
-- Wrap it in **ROUND()** to present clean metrics rounded to two decimal places.
+- Wrap the calculation in **ROUND()** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final output in ascending sequence by `runner_id` for structured presentation.
 
 #### Answer:
@@ -480,6 +480,7 @@ ORDER BY runner_id, pickup_time;
 #### Steps:
 - Apply a **WHERE** clause (`duration IS NOT NULL` and `distance IS NOT NULL`) to filter out incomplete or cancelled records.
 - Divide `distance` by `duration` to calculate kilometres per minute, multiply by 60 to convert it into kilometres per hour (km/h).
+- Wrap the calculation in **ROUND()** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `runner_id` and `pickup_time` for structured chronological presentation per runner.
 
 #### Answer:
@@ -509,7 +510,7 @@ ORDER BY runner_id;
 
 #### Steps:
 - Group records by `runner_id` to compute the success percentage individually for each runner.
-- Apply conditional aggregation using **COUNT()** and **FILTER (WHERE ...)** to isolate the count of successful deliveries per runner.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`cancellation IS NULL`) to isolate the count of successful deliveries per runner.
 - Divide using **COUNT()** to calculate the proportion of successful deliveries out of all assigned orders.
 - Multiply the number of successful deliveries by 100.0 to convert the ratio into a percentage.
 - Wrap the calculation in **ROUND()** to format the result to two decimal places.
@@ -549,7 +550,7 @@ ORDER BY t.pizza_name;
 
 #### Steps:
 - Define a Common Table Expression (`toppings`) that joins the `pizza_recipes` and `pizza_names` tables on `pizza_id`.
-- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited topping IDs into individual rows for each pizza.
+- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest comma-delimited topping IDs into individual rows for each pizza.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `toppings` CTE and the `pizza_toppings` table.
 - Apply **STRING_AGG()** ordered by `topping_id` to concatenate the ingredient names back into a comma-separated list.
@@ -585,10 +586,10 @@ LIMIT 1;
 #### Steps:
 - Define a Common Table Expression (`extras`) to process the `t_customer_orders` table.
 - Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out records without modifications prior to unnesting.
-- Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited extra topping IDs into individual rows.
+- Use **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest comma-delimited extra topping IDs into individual rows.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `extras` CTE and the `pizza_toppings` table.
-- Group the joined records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was added as an extra.
+- Group the joined records by `topping_name` and apply the **COUNT()** aggregate function to tally how many times each topping was added as an extra.
 - Sort the results in descending order by `times_added` and use **LIMIT 1** to isolate the single most frequently added extra topping.
 
 #### Answer:
@@ -620,10 +621,10 @@ LIMIT 1;
 #### Steps:
 - Define a Common Table Expression (`exclusions`) to process the `t_customer_orders` table.
 - Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out records without modifications prior to unnesting.
-- Use **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split the comma-delimited `exclusions` string into individual rows.
+- Use **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to split the comma-delimited `exclusions` string into individual rows.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `exclusions` CTE and the `pizza_toppings` table.
-- Group the joined records by `topping_name` and apply the **COUNT** aggregate function to tally how many times each topping was removed.
+- Group the joined records by `topping_name` and apply the **COUNT()** aggregate function to tally how many times each topping was removed.
 - Sort the aggregated results in descending order by `times_removed` and use **LIMIT 1** to isolate the single most frequently excluded topping.
 
 #### Answer:
@@ -689,11 +690,11 @@ ORDER BY op.record_id;
 - Use **ROW_NUMBER() OVER ()** to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
 - Define a Common Table Expression (`exclusions`) that joins the `ordered_pizzas` CTE and the `pizza_toppings` table on `topping_id`.
 - Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out missing records.
-- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split comma-delimited `exclusions` strings into individual rows for each pizza.
+- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to split comma-delimited `exclusions` strings into individual rows for each pizza.
 - Cast split values to **INTEGER** and apply **STRING_AGG()** sorted by `topping_id` and grouped by `record_id` to rebuild an ordered, comma-separated text list.
 - Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and **STRING_AGG()** re-aggregation logic to `extras`.
 - Perform an **INNER JOIN** against `pizza_names` on `pizza_id`, and **LEFT JOIN** both modification CTEs back to `ordered_pizzas` on `record_id`.
-- Apply string concatenation (||) combined with **COALESCE** to dynamically append ` - Exclude ...` and ` - Extra ...` label strings only when modifications are present.
+- Apply string concatenation (||) combined with **COALESCE()** to dynamically append ` - Exclude ...` and ` - Extra ...` label strings only when modifications are present.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
 #### Answer:
@@ -788,19 +789,19 @@ ORDER BY op.record_id;
 - Use **ROW_NUMBER() OVER ()** sorting by `order_id` to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
 - Define a Common Table Expression (`ingredient_list`) that unrolls base recipe toppings and extra toppings and subtracts unnested exclusions:
 	- Use an **INNER JOIN** on `pizza_id` to connect the `ordered_pizzas` CTE and the `pizza_recipes` table.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
 	- Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out missing records.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
 	- Merge them using **UNION ALL**.
 	- Apply a **WHERE** clause (`exclusions IS NOT NULL	`) to filter out missing records.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
 	- Subtracts unnested exclusions using **EXCEPT ALL**.
 - Define a Common Table Expression (`ingredient_list`) to process the `combined_ingredients` CTE.
 - Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
-- Group the joined records by `record_id` and `topping_name` and apply the **COUNT** aggregate function to compute individual topping quantities.
+- Group the joined records by `record_id` and `topping_name` and apply the **COUNT()** aggregate function to compute individual topping quantities.
 - Use an **INNER JOIN** from `ingredient_counts` to `ordered_pizzas` on `record_id` and to `pizza_names` on `pizza_id`.
 - Group the main query results by `record_id`, `order_id` and `pizza_name` to preserve individual line-item granularity across duplicate pizza orders.
-- Apply string concatenation (||) combined with **STRING_AGG()** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER**.
+- Apply string concatenation (||) combined with **STRING_AGG()** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER()**.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
 #### Answer:
@@ -879,12 +880,12 @@ ORDER BY quantity DESC;
 - Use **ROW_NUMBER() OVER ()** sorting by `order_id` to assign a unique key (`record_id`) to every pizza line item in the `t_customer_orders` table.
 - Define a Common Table Expression (`ingredient_list`) that unrolls base recipe toppings and extra toppings and subtracts unnested exclusions:
 	- Use an **INNER JOIN** on `pizza_id` to connect the `ordered_pizzas` CTE and the `pizza_recipes` table.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest base recipe toppings, and casting split values to **INTEGER**.
 	- Apply a **WHERE** clause (`extras IS NOT NULL`) to filter out missing records.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest extra toppings, and casting split values to **INTEGER**.
 	- Merge them using **UNION ALL**.
-	- Apply a **WHERE** clause (`exclusions IS NOT NULL	`) to filter out missing records.
-	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
+	- Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out missing records.
+	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
 	- Subtracts unnested exclusions using **EXCEPT ALL**.
 - Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
 - Group the joined records by `topping_name` and apply the **COUNT()** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
@@ -954,7 +955,7 @@ FROM delivered_pizzas
 #### Steps:
 - Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
-- Use a correlated scalar subquery with **COUNT()** aggregate function over **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest and count extra toppings for each order line item.
+- Use a correlated scalar subquery with **COUNT()** aggregate function over **REGEXP_SPLIT_TO_TABLE()** with the delimiter pattern [,\s]+ to unnest and count extra toppings for each order line item.
 - Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
 - Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 
@@ -1078,9 +1079,9 @@ FROM total_revenue tr, total_payouts tp;
 - Define a Common Table Expression (`total_revenue`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
 - Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
-- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
+- Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 - Combine both single-row CTEs via an implicit cross join.
-- Subtract total runner payouts from gross revenue, , wrapping the result in **ROUND** to calculate final earnings formatted to two decimal places as `net_profit`.
+- Subtract total runner payouts from gross revenue, , wrapping the result in **ROUND()** to calculate final earnings formatted to two decimal places as `net_profit`.
 
 #### Answer:
 | net_profit |
