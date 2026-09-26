@@ -8,7 +8,7 @@ FROM users;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the total number of unique users.
+- Use **COUNT DISTINCT** to calculate the total number of unique users.
 - (Optional) Assign the alias `unique_users` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -34,9 +34,9 @@ FROM cookies
 #### Steps:
 - Define a Common Table Expression (`cookies`) querying the `users` table.
 - Group the records by `user_id` to aggregate cookies per user.
-- Apply the **COUNT** aggregate function to calculate the total number of cookies for each user.
-- Apply the **AVG** aggregate function to calculate the average number of cookies per user across the aggregated CTE.
-- Wrap the calculation in **ROUND** to format the average to 0 decimal places.
+- Apply the **COUNT()** aggregate function to calculate the total number of cookies for each user.
+- Apply the **AVG()** aggregate function to calculate the average number of cookies per user across the aggregated CTE.
+- Wrap the calculation in **ROUND()** to format the average to 0 decimal places.
 
 #### Answer:
 | avg_cookies |
@@ -59,7 +59,7 @@ ORDER BY month;
 - Use an **INNER JOIN** on `cookie_id` to connect the `users` and `events` tables.
 - Use **EXTRACT(MONTH FROM ...)** to isolate the numerical month value from the event timestamps.
 - Group records by `month` to aggregate visit counts for each calendar month.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of `visits` per month.
+- Use **COUNT DISTINCT** to calculate the unique volume of `visits` per month.
 - (Optional) Order the final dataset in ascending sequence by `month` for structured presentation.
 
 #### Answer:
@@ -86,7 +86,7 @@ ORDER BY event_count DESC;
 #### Steps:
 - Use an **INNER JOIN** on `event_type` to connect the `events` and `event_identifier` tables.
 - Group records by `event_name` to aggregate metrics for each distinct event type.
-- Apply the **COUNT** aggregate function to calculate the total volume of events per group.
+- Apply the **COUNT()** aggregate function to calculate the total volume of events per group.
 - (Optional) Order the final dataset in descending sequence by `event_count` for structured presentation.
 
 #### Answer:
@@ -110,9 +110,10 @@ FROM events;
 ```
 
 #### Steps:
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate unique purchase visits and promote the calculation to a decimal value.
-- Use **COUNT()** to divide the purchase visits by the total count of unique visits.
-- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
+- Apply conditional aggregation using **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`event_type = 3`) to calculate unique purchase visits.
+- Multiply by 100.0 to promote the calculation to a decimal value.
+- Use **COUNT DISTINCT** to divide the purchase visits by the total count of unique visits.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | purchase_percentage |
@@ -142,11 +143,13 @@ FROM visit_flags;
 #### Steps:
 - Define a Common Table Expression (`visit_flags`) querying the `events` table.
 - Group records by `visit_id` to evaluate activity per visit.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to flag visits reaching the checkout page.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to flag visits completing a purchase.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate abandoned checkout visits and promote the calculation to a decimal value.
-- Use **COUNT()** to divide abandoned checkout visits by total checkout visits.
-- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1 AND page_id = 12`) to flag visits reaching the checkout page.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 3`) to flag visits that completed a purchase.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`checkout = 1 AND purchase = 0`) to calculate abandoned checkout visits.
+- Multiply by 100.0 to promote the calculation to a decimal value.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`checkout = 1`).
+- Divide to compute the checkout abandonment rate.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | percentage_checkout_no_purchase |
@@ -171,9 +174,9 @@ LIMIT 3;
 - Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
 - Apply a **WHERE** clause (`event_type = 1`) to isolate page view events.
 - Group records by `page_name` to aggregate metrics for each distinct page.
-- Use the **COUNT** aggregate function to tally the total volume of visits per page.
+- Use the **COUNT()** aggregate function to tally the total volume of visits per page.
 - Order the aggregated results in descending sequence by `visits` to highlight the top pages.
-- Apply **LIMIT** clause to restrict the output to the top 3 most visited pages.
+- Apply **LIMIT 3** clause to restrict the output to the top 3 most visited pages.
 
 #### Answer:
 | page_name    | visits |
@@ -200,8 +203,8 @@ ORDER BY ph.product_category;
 - Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
 - Apply a **WHERE** clause (`product_category IS NOT NULL`) to exclude non-product page records.
 - Group records by `product_category` to aggregate metrics for each distinct category.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to calculate total page views for each category.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** to calculate total cart additions for each category.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to calculate total page views for each category.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to calculate total cart additions for each category.
 - (Optional) Order the final dataset in ascending sequence by `product_category` for structured presentation.
 
 #### Answer:
@@ -248,9 +251,9 @@ LIMIT 3;
 - Apply a **WHERE** clause (`product_category IS NOT NULL AND event_type = 2`) to isolate product cart additions.
 - Use an **INNER JOIN** on `visit_id` to connect the `product_cart_adds` and `purchase_visits` CTEs.
 - Group records by `page_name` to aggregate metrics for each distinct product.
-- Use the **COUNT** aggregate function to tally total successful purchases per product.
+- Use the **COUNT()** aggregate function to tally total successful purchases per product.
 - Order the aggregated results in descending sequence by `purchases` to highlight top products.
-- Apply **LIMIT** clause to restrict the output to the top 3 most purchased products.
+- Apply **LIMIT 3** clause to restrict the output to the top 3 most purchased products.
 
 #### Answer:
 | product | purchases |
@@ -268,7 +271,6 @@ LIMIT 3;
 - How many times was each product added to a cart but not purchased (abandoned)?
 - How many times was each product purchased?
 ```sql
-CREATE VIEW product_funnel AS
 WITH product_info AS (
     SELECT
         e.visit_id,
@@ -300,7 +302,6 @@ ORDER BY product;
 ```
 
 #### Steps:
-- Use **CREATE VIEW** to create a view named `product_funnel` to store the output of the funnel transformation.
 - Define a Common Table Expression (`product_info`) that joins the `events` and `page_hierarchy` tables on `page_id`.
 - Apply a **WHERE** clause (`product_category IS NOT NULL`) to isolate product-related events.
 - Define a Common Table Expression (`purchase_visits`) querying the `events` table.
@@ -328,7 +329,6 @@ ORDER BY product;
 
 ### Additionally, create another table which further aggregates the data for the above points but this time for each product category instead of individual products.
 ```sql
-CREATE VIEW category_funnel AS
 WITH product_info AS (
     SELECT
         e.visit_id,
@@ -360,7 +360,6 @@ ORDER BY product_category;
 ```
 
 #### Steps:
-- Use **CREATE VIEW** to create a view named `category_funnel` to store the output of the funnel transformation.
 - Define a Common Table Expression (`product_info`) that joins the `events` and `page_hierarchy` tables on `page_id`.
 - Apply a **WHERE** clause (`product_category IS NOT NULL`) to isolate product-related events.
 - Define a Common Table Expression (`purchase_visits`) querying the `events` table.
@@ -381,7 +380,7 @@ ORDER BY product_category;
 | Shellfish        | 6204  | 3792      | 894       | 2898      |
 
 ### Use your 2 new output tables - answer the following questions:
-**NOTE:** I have added both views to `schema.sql` to run the solution easily.
+**NOTE:** I have used **CREATE VIEW** to create a view named `product_funnel` to store the output of the funnel transformation per individual product and added it to `schema.sql` to run the next questions easily.
 
 ### 1. Which product had the most views, cart adds and purchases?
 ```sql
@@ -421,11 +420,17 @@ SELECT * FROM (
 ```
 
 #### Steps:
-- Query the `product_funnel` view to extract the top product by views, ordering by `views` DESC with a LIMIT 1 clause.
+- Query the `product_funnel` inside a subquery (`t1`).
+- Order the final output in descending sequence by `views`.
+- Use **LIMIT 1** to isolate the most viewed product.
 - Apply **UNION ALL** to combine the top views result with the top cart adds result.
-- Query the `product_funnel` view to extract the top product by cart additions, ordering by `cart_adds` DESC with a LIMIT 1 clause.
+- Query the `product_funnel` inside a subquery (`t2`).
+- Order the final output in descending sequence by `cart_adds`.
+- Use **LIMIT 1** to isolate the most added product.
 - Apply **UNION ALL** to combine the previous results with the top purchases result.
-- Query the `product_funnel` view to extract the top product by purchases, ordering by `purchases` DESC with a LIMIT 1 clause.
+- Query the `product_funnel` inside a subquery (`t3`).
+- Order the final output in descending sequence by `purchases`.
+- Use **LIMIT 1** to isolate the most purchased product.
 
 #### Answer:
 | metric         | product | value |
@@ -446,10 +451,10 @@ LIMIT 1;
 
 #### Steps:
 - Query the `product_funnel` view.
-- Multiply `abandoned` by 100.0 to promote the calculation to a decimal value and divide by `cart_adds` to calculate the abandonment proportion.
-- Apply **ROUND()** to format the resulting metric to two decimal places.
-- Order the dataset in descending sequence by `abandon_rate_pct` to highlight the highest abandonment rate.
-- Apply a **LIMIT** clause to isolate the single product with the highest cart abandonment percentage.
+- Multiply `abandoned` by 100.0 to promote the calculation to a decimal value, divide by `cart_adds` to compute the cart abandonment percentage.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
+- Order the dataset in descending sequence by `abandon_rate_pct` to rank products by abandonment rate.
+- Apply  **LIMIT 1** to isolate the single product with the highest cart abandonment percentage.
 
 #### Answer:
 | product        | abandon_rate_pct |
@@ -468,10 +473,10 @@ LIMIT 1;
 
 #### Steps:
 - Query the `product_funnel` view.
-- Multiply `purchases` by 100.0 to promote the calculation to a decimal value and divide by `views` to calculate the conversion proportion.
-- Apply **ROUND()** to format the resulting conversion metric to two decimal places.
-- Order the dataset in descending sequence by `view_to_purchase_pct` to highlight the highest purchase rate.
-- Apply a **LIMIT** clause to isolate the single product with the highest view-to-purchase percentage.
+- Multiply `purchases` by 100.0 to promote the calculation to a decimal value, divide by `views` to calculate the view-to-purchase conversion percentage.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
+- Order the dataset in descending sequence by `view_to_purchase_pct` to rank products by conversion rate.
+- Apply a **LIMIT 1** to isolate the single top-performing product.
 
 #### Answer:
 | product | view_to_purchase_pct |
@@ -487,8 +492,9 @@ FROM product_funnel;
 
 #### Steps:
 - Query the `product_funnel` view.
-- Multiply `cart_adds` by 100.0 to promote the calculation to a decimal value, divide by `views` per product.
-- Apply **AVG()** wrapped in **ROUND()** to compute the unweighted mean view-to-cart conversion ratio rounded to two decimal places.
+- Multiply `cart_adds` by 100.0 to promote the calculation to a decimal value, divide by `views`.
+- Apply the **AVG()** aggregate function to compute the unweighted mean view-to-cart conversion ratio.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | avg_view_to_cart_ratio |
@@ -507,8 +513,9 @@ FROM product_funnel;
 
 #### Steps:
 - Query the `product_funnel` view.
-- Multiply `purchases` by 100.0 to promote the calculation to a decimal value, divide by `cart_adds` per product.
-- Apply **AVG()** wrapped in **ROUND()** to compute the unweighted mean cart-to-purchase conversion ratio rounded to two decimal places.
+- Multiply `purchases` by 100.0 to promote the calculation to a decimal value, divide by `cart_adds`.
+- Apply the **AVG()** aggregate function to compute the unweighted mean cart-to-purchase conversion ratio.
+- Wrap the calculation in **ROUND()** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | avg_cart_to_purchase_ratio |
@@ -568,14 +575,14 @@ ORDER BY a.user_id;
 
 #### Steps:
 - Define a Common Table Expression (`aggregates`) that joins the `users` and `events` tables on `cookie_id`, with a **LEFT JOIN** to `page_hierarchy` on `page_id`.
-- Group records by `user_id` and `visit_id` to aggregate visit-level user behaviour.
-- Apply the **MIN()** aggregate function to extract the earliest event timestamp per visit.
-- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally page views.
-- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally cart additions.
+- Group records by `user_id` and `visit_id` to aggregate metrics per visit.
+- Apply the **MIN()** aggregate function to identify the earliest event timestamp per visit.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally page views events.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally cart additions events.
 - Apply a **CASE** statement inside the **MAX()** aggregate function to create a binary indicator flag for completed purchases.
-- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 4`) to tally ad impressions.
-- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 5`) to tally ad clicks.
-- Apply **STRING_AGG()** ordered by `sequence_number` with a **FILTER (WHERE ...)** clause (`event_type = 2`) to construct a comma-separated list of added products.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 4`) to tally ad impressions events.
+- Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 5`) to tally ad clicks events.
+- Apply **STRING_AGG()** ordered by `sequence_number` with a **FILTER (WHERE ...)** clause (`event_type = 2`) to concatenate added product names into a comma-separated list.
 - Use a **LEFT JOIN** that joins the `aggregates` CTE and the `campaign_identifier` table with a **WHERE** clause (`visit_start_time::DATE BETWEEN start_date AND end_date`) to map matching marketing campaigns.
 - (Optional) Order the final dataset in ascending sequence by `user_id` for structured presentation.
 

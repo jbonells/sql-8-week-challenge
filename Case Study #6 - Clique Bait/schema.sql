@@ -34621,34 +34621,3 @@ LEFT JOIN purchase_visits pv
 	ON pi.visit_id = pv.visit_id
 GROUP BY product
 ORDER BY product;
-
-
-CREATE VIEW category_funnel AS
-WITH product_info AS (
-    SELECT
-        e.visit_id,
-        e.event_type,
-        ph.product_category
-    FROM events e
-    INNER JOIN page_hierarchy ph
-        ON e.page_id = ph.page_id
-    WHERE ph.product_category IS NOT NULL
-),
-purchase_visits AS (
-	SELECT
-		DISTINCT visit_id
-	FROM events
-	WHERE event_type = 3
-)
-
-SELECT
-    pi.product_category,
-    COUNT(*) FILTER (WHERE pi.event_type = 1) AS views,
-    COUNT(*) FILTER (WHERE pi.event_type = 2) AS cart_adds,
-    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NULL) AS abandoned,
-    COUNT(*) FILTER (WHERE pi.event_type = 2 AND pv.visit_id IS NOT NULL) AS purchases
-FROM product_info pi
-LEFT JOIN purchase_visits pv
-	ON pi.visit_id = pv.visit_id
-GROUP BY product_category
-ORDER BY product_category;
