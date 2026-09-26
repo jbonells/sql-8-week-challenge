@@ -64,7 +64,7 @@ FROM formatted_dates;
 - Apply explicit **INTEGER** type casting to the extracted date parts to ensure clean numeric data types instead of floating-point numbers.
 - Apply **COALESCE()** and **NULLIF()** to the `segment` column to replace literal 'null' strings with 'unknown'.
 - Use **CASE** statements combined with **RIGHT()** and **LEFT()** functions to evaluate the `segment` codes and categorise the `age_band` and `demographic` dimensions.
-- Apply the **ROUND()** function, casting `sales` to numeric and handling zero-division with **NULLIF()**, to compute the `avg_transaction` metric.
+- Wrap the calculation in **ROUND()** casting `sales` to **NUMERIC** and handling zero-division with **NULLIF()**, to compute the `avg_transaction` metric.
 
 **NOTE:** I have added the new table to `schema.sql` to run the solution easily.
 
@@ -79,7 +79,7 @@ FROM clean_weekly_sales;
 ```
 
 #### Steps:
-- Apply the **TO_CHAR** function with **DISTINCT** to isolate and retrieve the day name used.
+- Apply the **TO_CHAR()** function with **DISTINCT** to isolate and retrieve the day name used.
 - (Optional) Assign the alias `week_day` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -153,7 +153,7 @@ ORDER BY calendar_year;
 
 #### Steps:
 - Group records by `calendar_year` to aggregate transaction totals for each distinct year.
-- Use the **SUM** aggregate function to add all individual `transactions` values for each year.
+- Use the **SUM()** aggregate function to add all individual `transactions` values for each year.
 - (Optional) Order the final dataset in ascending sequence by `calendar_year` for structured presentation.
 
 #### Answer:
@@ -176,7 +176,7 @@ ORDER BY region, month;
 
 #### Steps:
 - Group records by `region` and `month` to aggregate sales for each region and month combination.
-- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each group.
 - (Optional) Order the final dataset in ascending sequence by `region` and `month` for structured presentation.
 
 #### Answer:
@@ -204,7 +204,7 @@ ORDER BY total_transactions DESC;
 
 #### Steps:
 - Group records by `platform` to aggregate transaction totals for each platform.
-- Use the **SUM** aggregate function to add all individual `transactions` values for each platform.
+- Use the **SUM()** aggregate function to add all individual `transactions` values for each platform.
 - (Optional) Order the final dataset in descending sequence by `total_transactions` for structured presentation.
 
 #### Answer:
@@ -226,11 +226,12 @@ ORDER BY year, month;
 ```
 
 #### Steps:
-- Group records by `year` and `month` to aggregate sales for each year and month combination.
-- Use the **SUM** aggregate function to add all individual `sales` values for each group.
-- Apply the **FILTER (WHERE ...)** clause to dynamically isolate total sales for each distinct platform ('Retail' and 'Shopify').
+- Group records by `year` and `month` to aggregate sales per month.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each group.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`platform = 'Retail'`) to dynamically isolate total sales for Retail.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`platform = 'Shopify'`) to dynamically isolate total sales for Shopify.
 - Multiply the filtered sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by the overall monthly sales.
-- Apply the **ROUND()** function to format the resulting percentage metrics to two decimal places.
+- Wrap the calculations in **ROUND()** to format the resulting percentage metrics to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `year` and `month` for structured presentation.
 
 #### Answer:
@@ -259,10 +260,10 @@ ORDER BY year, demographic;
 
 #### Steps:
 - Group records by `year` and `demographic` to aggregate sales for each year and demographic combination.
-- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each group.
 - Apply a **SUM() OVER()** window function with partition by `calendar_year` to calculate overall annual sales across all demographics.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by overall annual sales.
-- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Wrap the calculation in **ROUND()** to format the final percentage metrics to two decimal places.
 - Order the final dataset in ascending sequence by `year` and `demographic` for structured presentation.
 
 #### Answer:
@@ -309,17 +310,17 @@ ORDER BY dimension, retail_sales DESC;
 #### Steps:
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Add literal string labels ('age_band' as dimension) and group records by `age_band` to aggregate sales for each age band.
-- Use the **SUM** aggregate function to add all individual `sales` values for each age band.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each age band.
 - Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across age bands.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
-- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Wrap the calculation in **ROUND()** to format the final percentage metrics to two decimal places.
 - Apply **UNION ALL** to combine the age band results with the demographic results.
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Add literal string labels ('demographic' as dimension) and group records by `demographic` to aggregate sales for each demographic.
-- Use the **SUM** aggregate function to add all individual `sales` values for each demographic.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each demographic.
 - Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across demographics.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
-- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Wrap the calculations in **ROUND()** to format the output values to two decimal places.
 - (Optional) Order the final dataset ascending by `dimension` and descending by `retail_sales` for structured presentation.
 
 #### Answer:
@@ -352,10 +353,10 @@ ORDER BY retail_sales DESC;
 #### Steps:
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Group records by `age_band` and `demographic` to aggregate sales for each age band and demographic combination.
-- Use the **SUM** aggregate function to add all individual `sales` values for each group.
+- Use the **SUM()** aggregate function to add all individual `sales` values for each group.
 - Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across all groups.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
-- Apply the **ROUND()** function to format the final percentage metrics to two decimal places.
+- Wrap the calculations in **ROUND()** to format the output values to two decimal places.
 - (Optional) Order the final dataset in descending sequence by `retail_sales` for structured presentation.
 
 #### Answer:
@@ -386,11 +387,11 @@ ORDER BY year, platform;
 ```
 
 #### Steps:
-- Group records by `year` and `platform` to aggregate transaction metrics for each year and platform combination.
-- Apply **AVG()** to `avg_transaction` and **ROUND()** to two decimal places to calculate the simple average of individual transaction averages.
-- Use `SUM(sales)::NUMERIC / SUM(transactions)` inside **ROUND()** to compute the true weighted average transaction size.
-- Use the **SUM()** aggregate function for both `sales` and `transactions`, casting sales to compute the true weighted average transaction size
-- Subtract the true weighted average from the simple average of averages and apply **ROUND()** to highlight the numerical difference.
+- Group records by `year` and `platform` to aggregate transaction metrics per platform for each year.
+- Apply **AVG()** aggregate function to compute the unweighted mean of average transactions.
+- Use the **SUM()** aggregate function for both `sales` with a **NUMERIC** cast and `transactions` to compute the true weighted average transaction size.
+- Subtract the true weighted average transaction size from the simple average to compute the metric discrepancy.
+- Wrap the calculations in **ROUND()** to format the output values to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `year` and `platform` for structured presentation.
 
 #### Answer:
@@ -442,10 +443,11 @@ FROM period;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table to aggregate sales across specific time windows.
-- Use the **SUM** aggregate function with **FILTER (WHERE ...)** clauses to compute total sales for the 4-week period before (`sales_before`) and after (`sales_after`) the 15 of June 2020.
-- Subtract `sales_before` from `sales_after` to compute the net sales variance.
-- Multiply the change by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to calculate the relative impact to two decimal places.
+- Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_date >= DATE '2020-06-15' - INTERVAL '4 weeks' AND week_date <  DATE '2020-06-15'`) to calculate total sales during the 4 weeks prior to 15 of June 2020.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_date >= DATE '2020-06-15' AND week_date <  DATE '2020-06-15' + INTERVAL '4 weeks'`) to calculate total sales during the 4 weeks following June 2020.
+- Subtract `sales_before` from `sales_after` to compute the net sales difference.
+- Multiply the net sales difference by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to compute the percentage sales change rounded to two decimal places.
 
 #### Answer:
 | sales_before  | sales_after   | sales_change | percentage_rate |
@@ -476,10 +478,11 @@ FROM period;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table to aggregate sales across specific time windows.
-- Use the **SUM** aggregate function with **FILTER (WHERE ...)** clauses to compute total sales for the 12-week period before (`sales_before`) and after (`sales_after`) the 15 of June 2020.
-- Subtract `sales_before` from `sales_after` to compute the net sales variance.
-- Multiply the change by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to calculate the relative impact to two decimal places.
+- Define a Common Table Expression (`period`) querying the `clean_weekly_sales` table.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_date >= DATE '2020-06-15' - INTERVAL '12 weeks' AND week_date <  DATE '2020-06-15'`) to calculate total sales during the 12 weeks prior to 15 of June 2020.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_date >= DATE '2020-06-15' AND week_date <  DATE '2020-06-15' + INTERVAL '12 weeks'`) to calculate total sales during the 12 weeks following June 2020.
+- Subtract `sales_before` from `sales_after` to compute the net sales difference.
+- Multiply the net sales difference by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to compute the percentage sales change rounded to two decimal places.
 
 #### Answer:
 | sales_before  | sales_after   | sales_change | percentage_rate |
@@ -521,10 +524,14 @@ ORDER BY year;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`baseline`) to dynamically extract the baseline `week_number` corresponding to 15 of June 2020.
+- Define a Common Table Expression (`baseline`) querying the `clean_weekly_sales` table.
+- Use **DISTINCT** to extract the unique `week_number` corresponding to 15 of June 2020.
 - Define a Common Table Expression (`period`) cross-joining `clean_weekly_sales` with `baseline`, grouping by `year` to aggregate sales across multi-week windows.
-- Apply the **SUM** aggregate function with **FILTER (WHERE ...)** clauses using relative `week_number` maths to calculate 4-week and 12-week totals before and after the baseline.
-- Subtract the respective "before" sales from "after" sales to compute net variance metrics.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week - 4 AND baseline_week - 1`) to calculate 4-week pre-baseline sales.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week AND baseline_week + 3`) to calculate 4-week post-baseline sales.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week - 1`) to calculate 12-week pre-baseline sales.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week AND baseline_week + 11`) to calculate 12-week post-baseline sales.
+- Subtract the respective "before" sales from "after" sales to compute the net sales difference.
 - Multiply changes by 100, cast to **NUMERIC**, divide by the corresponding "before" totals, and apply **ROUND()** to compute relative impact metrics to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `year` for structured presentation.
 
@@ -586,13 +593,16 @@ ORDER BY area, value;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`baseline`) to dynamically extract the baseline `week_number` corresponding to 15 of June 2020.
-- Define a Common Table Expression (`period_sales`) cross-joining `clean_weekly_sales` with `baseline`.
-- Apply a **CROSS JOIN LATERAL (VALUES ...)** clause to unpivot the dimension columns (`region`, `platform`, `age_band`, `demographic`, `customer_type`) into unified area and value key-value pairs.
-- Apply a **WHERE** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week + 11 AND calendar_year = 2020`) to restrict data to the 12-week windows before and after the baseline for 2020.
-- Group records by `area` and `value`, using **SUM()** with **FILTER (WHERE ...)** clauses to compute total sales before (`sales_before`) and after (`sales_after`) the baseline.
-- Subtract `sales_before` from `sales_after` to compute the net sales variance.
-- Multiply changes by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to calculate the relative impact to two decimal places.
+- Define a Common Table Expression (`baseline`) querying the `clean_weekly_sales` table.
+- Use **DISTINCT** to extract the unique `week_number` corresponding to 15 of June 2020.
+- Define a Common Table Expression (`period_sales`) cross-joining between `clean_weekly_sales` with `baseline`.
+- Apply a **CROSS JOIN LATERAL (VALUES ...)** clause to unpivot the dimension columns (`region`, `platform`, `age_band`, `demographic`, `customer_type`) into standard `area` and `value` key-value pairs.
+- Apply a **WHERE** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week + 11 AND calendar_year = 2020`) to restrict records to the 12-week pre/post window for the year 2020.
+- Group records by `area` and `value` to aggregate metrics per unpivoted dimension.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week - 1`) to calculate 12-week pre-baseline sales.
+- Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week AND baseline_week + 11`) to calculate 12-week post-baseline sales.
+- Subtract `sales_before` from `sales_after` to compute the net sales difference.
+- Multiply the net sales difference by 100, cast to **NUMERIC**, divide by `sales_before`, and apply **ROUND()** to compute the percentage changerounded to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `area` and `value` for structured presentation.
 
 #### Answer:
