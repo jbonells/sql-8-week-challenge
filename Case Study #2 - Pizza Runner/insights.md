@@ -18,7 +18,7 @@ SELECT
     NULLIF(NULLIF(extras, 'null'), '') AS extras,
     order_time
 FROM customer_orders;
-````
+```
 
 ### Table: runner_orders
 
