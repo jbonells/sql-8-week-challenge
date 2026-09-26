@@ -60,7 +60,7 @@ FROM subscriptions;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique customers, ensuring customers with multiple plans are tallied as a single customer.
+- Use **COUNT DISTINCT** to isolate and count only unique customers, ensuring customers with multiple plans are tallied as a single customer.
 - (Optional) Assign the alias `customers` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -84,10 +84,10 @@ ORDER BY DATE_TRUNC('month', s.start_date);
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
 - Apply a **WHERE** clause (`plan_name = 'trial'`) to isolate trial plan subscriptions.
-- Use **DATE_TRUNC('month', ...)** to truncate start dates to the first of the month.
-- USe **TO_CHAR(..., 'FMMonth')** to format truncated dates as full month names.
+- Use **DATE_TRUNC()** to truncate start dates to the first of the month.
+- USe **TO_CHAR()** to format truncated dates as full month names.
 - Group the filtered records by `month_name` and `DATE_TRUNC('month', start_date)` to aggregate trial signups by month while preserving date sorting capabilities.
-- Apply the **COUNT** aggregate function to calculate the total volume of trial start events per month.
+- Apply the **COUNT()** aggregate function to calculate the total volume of trial start events per month.
 - Order the final output chronologically by truncated dates for structured presentation.
 
 #### Answer:
@@ -124,7 +124,7 @@ ORDER BY p.plan_id;
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
 - Apply a **WHERE** clause (`start_date >= '2021-01-01'`) to isolate subscription events occurring on or after 1st of January 2021.
 - Group the filtered records by `plan_id` and `plan_name` to aggregate activity metrics per subscription plan.
-- Apply the **COUNT** aggregate function to calculate total subscription events for each plan.
+- Apply the **COUNT()** aggregate function to calculate total subscription events for each plan.
 - (Optional) Order the final dataset in ascending sequence by `plan_id` for structured presentation.
 
 #### Answer:
@@ -148,10 +148,10 @@ FROM subscriptions;
 ```
 
 #### Steps:
-- Apply conditional aggregation using **COUNT** and **FILTER (WHERE ...)** to count unique customers who cancelled their service.
-- Divide using **COUNT** with **DISTINCT** to calculate the proportion of churned customers out of the total distinct customer count.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`plan_id = 4`) to count unique customers who cancelled their service.
+- Divide using **COUNT DISTINCT** to calculate the proportion of churned customers out of the total distinct customer count.
 - Multiply the number of successful deliveries by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
-- Wrap the calculation in **ROUND** to format the result to one decimal places.
+- Wrap the calculation in **ROUND()** to format the result to one decimal places.
 
 #### Answer:
 | churned_customers | churn_percentage | 
@@ -183,9 +183,9 @@ WHERE plan_id = 4 AND plan_sequence = 2;
 - Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
 - Use **ROW_NUMBER() OVER ()** to chronologically sequence each customer's plan transitions.
 - Apply a **WHERE** clause (`plan_id = 4` and `plan_sequence = 2`) to isolate customers whose second subscription event was a churn, capturing cancellations immediately following an initial free trial.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of customers fitting this exact conversion path, aliasing the aggregate as `customers_count`.
+- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers fitting this exact conversion path, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by total distinct customers retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
-- Wrap the calculation in **ROUND** to format the result to zero decimal places.
+- Wrap the calculation in **ROUND()** to format the result to zero decimal places.
 
 #### Answer:
 | customers_count | churn_percentage | 
@@ -224,9 +224,9 @@ ORDER BY p.plan_id;
 - Use an **INNER JOIN** on `plan_id` to connect the `ordered_plans` CTE and the `plans` tables.
 - Apply a **WHERE** clause (`plan_sequence = 2`) to isolate each customer's second plan transition (the plan immediately following their initial trial).
 - Group the filtered records by `plan_id` and `plan_name` to aggregate conversion metrics per plan.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of customers converting to each target plan, aliasing the aggregate as `customers_count`.
+- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers converting to each target plan, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by total distinct customers retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
-- Wrap the calculation in **ROUND** to format the result to one decimal places.
+- Wrap the calculation in **ROUND()** to format the result to one decimal places.
 - (Optional) Order the final dataset in ascending sequence by `plan_id` for structured presentation.
 
 #### Answer:
@@ -271,9 +271,9 @@ ORDER BY p.plan_id;
 - Use an **INNER JOIN** on `plan_id` to connect the `ordered_plans` CTE and the `plans` tables.
 - Apply a **WHERE** clause (`plan_sequence = 1`) to isolate each customer's latest active plan as of 31st December 2020.
 - Group the filtered records by `plan_id` and `plan_name` to aggregate conversion metrics per plan.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of customers on each plan at year-end 2020, aliasing the aggregate as `customers_count`.
+- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers on each plan at year-end 2020, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by the total count of active customers as of 31st December 2020 retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
-- Wrap the calculation in **ROUND** to format the result to one decimal places.
+- Wrap the calculation in **ROUND()** to format the result to one decimal places.
 - (Optional) Order the final dataset in ascending sequence by `plan_id` for structured presentation.
 
 #### Answer:
@@ -299,7 +299,7 @@ WHERE s.start_date BETWEEN '2020-01-01' AND '2020-12-31'
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
 - Apply a **WHERE** clause (`start_date BETWEEN '2020-01-01' AND '2020-12-31'` and `plan_name = 'pro annual'`) to isolate annual plan subscriptions starting between 1st January 2020 and 31st December 2020.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the volume of unique customers who purchased or upgraded to a pro annual plan during 2020.
+- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the volume of unique customers who purchased or upgraded to a pro annual plan during 2020.
 
 #### Answer:
 | annual_plan_customers |
@@ -338,7 +338,7 @@ INNER JOIN annual_plan_dates apd
 - Use an **INNER JOIN** on `customer_id` to connect the `trial_plan_dates` and `annual_plan_dates` CTEs.
 - Subtract `trial_date` from `annual_date` to calculate the elapsed time in days between trial start and annual plan conversion per customer.
 - Apply the **AVG** aggregate function across the calculated date differences to compute the mean conversion timeframe across all converting customers.
-- Wrap the calculation in **ROUND** and cast the result to **INTEGER** to return a clean, rounded whole-number metric.
+- Wrap the calculation in **ROUND()** and cast the result to **INTEGER** to return a clean, rounded whole-number metric.
 
 #### Answer:
 | average_days |
@@ -389,7 +389,7 @@ ORDER BY bucket;
 - Define a Common Table Expression (`customer_durations`) that joins the `trial_plan_dates` and `annual_plan_dates` CTEs on `customer_id`.
 - Use **WIDTH_BUCKET()** on the date difference across the range 1 to 181 into 6 equal intervals to assign each conversion to a numeric `bucket`.
 - Apply a **CASE** statement in the main query to to dynamically map bucket numbers to formatted duration strings.
-- Group the records by `bucket` and apply **COUNT** to aggregate the total volume of converted customers within each duration bracket.
+- Group the records by `bucket` and apply **COUNT()** to aggregate the total volume of converted customers within each duration bracket.
 - Order the final output sequentially by `bucket` to present the duration brackets in logical chronological sequence.
 
 #### Answer:
@@ -427,7 +427,7 @@ WHERE plan_id = 2
 - Define a Common Table Expression (`customer_plans`) to process the `subscriptions` table.
 - Use **LEAD() OVER ()** partitioned by `customer_id` and ordered by `start_date` to capture each customer's subsequent plan (`next_plan_id`) and start date (`next_plan_date`).
 - Apply a **WHERE** clause (`plan_id = 2`, `next_plan_id = 1` and `next_plan_date BETWEEN '2020-01-01' AND '2020-12-31'`) to isolate customers that downgraded from a pro monthly to a basic monthly plan in 2020.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the unique volume of customers who completed this downgrade.
+- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers who completed this downgrade.
 
 #### Answer:
 | customers_downgraded |
