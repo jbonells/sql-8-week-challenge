@@ -8,7 +8,7 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **SUM** aggregate function to calculate the total number of products sold.
+- Apply the **SUM()** aggregate function to calculate the total number of products sold.
 - (Optional) Assign the alias `total_quantity_sold` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -24,7 +24,7 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **SUM** aggregate function to the product of `qty` and `price` to calculate the total sales revenue.
+- Apply the **SUM()** aggregate function to the product of `qty` and `price` to calculate the total sales revenue.
 - (Optional) Assign the alias `total_quantity_sold` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -40,8 +40,8 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **SUM** aggregate function to multiply `qty`, `price`, and `discount`, divide by 100.0 to calculate the monetary discount amount.
-- Wrap the calculation in **ROUND** to format the average to two decimal places.
+- Apply the **SUM()** aggregate function to multiply `qty`, `price`, and `discount`, divide by 100.0 to calculate the monetary discount amount.
+- Wrap the calculation in **ROUND()** to format the average to two decimal places.
 
 #### Answer:
 | total_discount |
@@ -60,7 +60,7 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the total number of unique transactions.
+- Use **COUNT DISTINCT** to calculate the total number of unique transactions.
 - (Optional) Assign the alias `unique_transactions` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -84,9 +84,9 @@ FROM (
 #### Steps:
 - Define a subquery (`txn_products`) querying the `sales` table.
 - Group records by `txn_id` to aggregate product counts per transaction.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the number of distinct products purchased in each transaction.
-- Apply the **AVG** aggregate function to calculate the average number of unique products per transaction.
-- Wrap the calculation in **ROUND** to format the average to two decimal places.
+- Use **COUNT DISTINCT** to calculate the number of distinct products purchased in each transaction.
+- Apply the **AVG()** aggregate function to calculate the average number of unique products per transaction.
+- Wrap the calculation in **ROUND()** to format the average to two decimal places.
 
 
 #### Answer:
