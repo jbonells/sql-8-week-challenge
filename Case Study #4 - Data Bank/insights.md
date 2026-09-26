@@ -8,7 +8,7 @@ FROM customer_nodes;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and calculate the total number of unique nodes across the system.
+- Use **COUNT DISTINCT** to isolate and calculate the total number of unique nodes across the system.
 - (Optional) Assign the alias `unique_nodes` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -31,7 +31,7 @@ ORDER BY r.region_name;
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
 - Group the joined records by `region_name` to aggregate node metrics per region.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the volume of unique nodes within each region.
+- Use **COUNT DISTINCT** to calculate the volume of unique nodes within each region.
 - (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
 #### Answer:
@@ -58,7 +58,7 @@ ORDER BY r.region_name;
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
 - Group the joined records by `region_name` to aggregate customer metrics per region.
-- Apply the **COUNT** aggregate function with **DISTINCT** to calculate the volume of unique customers within each region.
+- Use **COUNT DISTINCT** to calculate the volume of unique customers within each region.
 - (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
 #### Answer:
@@ -81,8 +81,8 @@ WHERE end_date <> '9999-12-31';
 #### Steps:
 - Apply a **WHERE** clause (`end_date <> '9999-12-31'`) to isolate completed node reallocations, excluding ongoing placeholder dates that would distort the average.
 - Subtract `start_date` from `end_date` to calculate the duration in days spent at each assigned node.
-- Apply the **AVG** aggregate function to calculate the mean reallocation timeframe.
-- Wrap the calculation in **ROUND** to format the final average duration to 2 decimal places.
+- Apply the **AVG()** aggregate function to calculate the mean reallocation timeframe.
+- Wrap the calculation in **ROUND()** to format the final average duration to 2 decimal places.
 
 #### Answer:
 | avg_node_reallocation_days |
@@ -135,8 +135,8 @@ ORDER BY txn_type;
 
 #### Steps:
 - Group the records by `txn_type` to aggregate transaction activity by type.
-- Apply the **COUNT** aggregate function to calculate the total volume of transactions per type.
-- Use the **SUM** aggregate function to calculate the cumulative monetary value for each transaction type.
+- Apply the **COUNT()** aggregate function to calculate the total volume of transactions per type.
+- Use the **SUM()** aggregate function to calculate the cumulative monetary value for each transaction type.
 - (Optional) Order the final dataset in ascending sequence by `txn_type` for structured presentation.
 
 #### Answer:
@@ -168,10 +168,10 @@ FROM customer_deposits;
 - Define a Common Table Expression (`customer_deposit_summary`) querying the `customer_transactions` table.
 - Apply a **WHERE** clause (`txn_type = 'deposit'`) to isolate deposit records.
 - Group the records by `customer_id` to aggregate deposit activity at the customer level.
-- Apply the **COUNT** aggregate function to calculate each customer's total deposit frequency.
-- Use the **SUM** aggregate function to calculate each customer's cumulative deposited value.
-- Apply the **AVG** aggregate function across both aggregated fields in the main query to calculate the overall mean deposit count and mean deposit amount per customer.
-- Wrap both calculations in **ROUND** to format the final average metrics to 2 decimal places.
+- Apply the **COUNT()** aggregate function to calculate each customer's total deposit frequency.
+- Use the **SUM()** aggregate function to calculate each customer's cumulative deposited value.
+- Apply the **AVG()** aggregate function across both aggregated fields in the main query to calculate the overall mean deposit count and mean deposit amount per customer.
+- Wrap both calculations in **ROUND()** to format the final average metrics to 2 decimal places.
 
 #### Answer:
 | avg_deposit_count | avg_deposit_amount |
@@ -202,11 +202,14 @@ ORDER BY month;
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
-- Use **EXTRACT()** to derive the numeric month as `month`.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** grouped by `customer_id` and `month` to compute monthly transaction totals for deposits, purchases, and withdrawals per customer.
+- Use the **EXTRACT(MONTH FROM ...)** function to derive the numeric month as `month`.
+- Group records by `customer_id` and `month` to aggregate metrics per customer for each month.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`txn_type = 'deposit'`) to tally monthly deposits per customer.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`txn_type = 'purchase'`) to tally monthly purchases per customer.
+- Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`txn_type = 'withdrawal'`) to tally monthly withdrawals per customer.
 - Apply a **WHERE** clause (`deposit_count > 1 AND (purchase_count >= 1 OR withdrawal_count >= 1)`) in the main query to isolate customer months meeting the active engagement criteria.
 - Group the filtered records by `month` to aggregate activity metrics per calendar month.
-- Apply the **COUNT** aggregate function with **DISTINCT** to aggregate activity metrics per calendar month.
+- Use **COUNT DISTINCT** to aggregate activity metrics per calendar month.
 - (Optional) Order the final dataset sequentially by `month` for structured presentation.
 
 #### Answer:
@@ -251,13 +254,13 @@ ORDER BY fc.customer_id, fc.month;
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
-- Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
+- Use **DATE_TRUNC()** to truncate transaction dates to first-of-the-month dates.
 - Group records by `customer_id` and `month` to aggregate transaction activity per individual customer for each distinct calendar month.
-- Apply a **CASE** statement inside a **SUM** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Apply a **CASE** statement inside a **SUM()** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
 - Define a Common Table Expression (`full_calendar`) that take **DISTINCT** `customer_id` from a sub-query and **CROSS JOIN** them with unique numeric months from `customer_transactions` table.
 - Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month.
-- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Wrap `net_change` in **COALESCE()** to replace `NULL` values with 0 for inactive months.
 - Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` and `month` for structured presentation.
 
@@ -336,20 +339,20 @@ FROM customer_change;
 
 #### Steps:
 - Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
-- Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
+- Use **DATE_TRUNC()** to truncate transaction dates to first-of-the-month dates.
 - Group records by `customer_id` and `month` to aggregate transaction activity per individual customer for each distinct calendar month.
-- Apply a **CASE** statement inside a **SUM** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Apply a **CASE** statement inside a **SUM()** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
 - Define a Common Table Expression (`full_calendar`) that take **DISTINCT** `customer_id` from a sub-query and **CROSS JOIN** them with unique numeric months from `customer_transactions` table.
 - Define a Common Table Expression (`closing_balances`) querying the `full_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
-- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Wrap `net_change` in **COALESCE()** to replace `NULL` values with 0 for inactive months.
 - Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
 - Define a Common Table Expression (`balance_comparison`) querying the `closing_balances` CTE using **SELECT DISTINCT** to extract one record per customer.
 - Apply **FIRST_VALUE()** and **LAST_VALUE()** window functions partitioned by `customer_id` and ordered by `month` to capture each customer's initial and final balance respectively.
 - Define a Common Table Expression (`customer_change`) querying the `balance_comparison` CTE to calculate each customer's percentage growth.
-- Apply conditional aggregation using **COUNT() FILTER (WHERE ...)** multiplied by 100.0 to calculate the proportion of qualifying customers.
+- Apply conditional aggregation using **COUNT()** with a ** FILTER (WHERE ...)** clause (`pct_change > 5`) multiplied by 100.0 to calculate the proportion of qualifying customers.
 - Use **COUNT()** to divide by the total customer count.
-- Wrap the calculation with **ROUND** to present the result as a percentage rounded to two decimal places.
+- Wrap the calculation with **ROUND()** to present the result as a percentage rounded to two decimal places.
 
 #### Answer:
 | pct_customers_over_5_percent |
@@ -421,17 +424,17 @@ running_balance AS (
 #### Steps:
 - CTE 1: Standardise Monthly Transaction Impacts
 	- Define a Common Table Expression (`monthly_activity`) querying the `customer_transactions` table.
-	- Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
-	- Group records by `customer_id` and `month` to aggregate transaction activity per individual customer for each distinct calendar month.
-	- Apply a **CASE** statement inside a **SUM** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+	- Use **DATE_TRUNC()** to truncate transaction timestamps to the start of each month.
+	- Group records by `customer_id` and `month` to aggregate metrics per customer for each month.
+	- Apply a **CASE** statement inside a **SUM()** aggregate function to calculate monthly net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
 - CTE 2: Full Calendar Matrix
 	- Define a Common Table Expression (`full_calendar`).
-	- Perform a **CROSS JOIN** between distinct customer IDs and distinct truncated month dates from `customer_transactions` to generate a complete matrix of every customer for every available month.
+	- Perform a **CROSS JOIN** between unique `customer_id` values and unique `month` dates extracted from `customer_transactions` to build a complete customer-month grid.
 - CTE 3: Cumulative Monthly Closing Balances
 	- Define a Common Table Expression (`closing_balances`) querying the `full_calendar` CTE.
-	- Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
-	- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
-	- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
+	- Use a **LEFT JOIN** on `customer_id` and `month` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
+	- Apply **COALESCE()** to replace `NULL` values with 0 for inactive customer-months.
+	- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's monthly closing balance.
 - CTE 4: Transaction-Level Running Balance
 	- Define a Common Table Expression (`running_balances`) querying the `customer_transactions` table.
 	- Apply a **CASE** statement inside a **SUM() OVER ()** window function partitioned by `customer_id` and order by `txn_date` to compute a continuous transaction-by-transaction running balance.
@@ -540,11 +543,11 @@ ORDER BY o1.month;
 	- Use `RANGE BETWEEN INTERVAL '29 days' PRECEDING AND CURRENT ROW` to compute a 30-day rolling average running balance (avg_30d_balance) for each transaction date.
 - CTE 6: Monthly Average of Rolling 30-Day Balance
 	- Define a Common Table Expression (`customer_month_avg`) querying the `rolling_30_days` CTE.
-	 Use **DATE_TRUNC** to truncate transaction dates to first-of-the-month dates.
+	- Use **DATE_TRUNC()** to truncate transaction dates to first-of-the-month dates.
 	- Group records by `customer_id` and `month`, applying **AVG()** to calculate each customer's mean 30-day rolling balance per month.
 - CTE 7: Lagged Prior Closing Balance
 	- Define a Common Table Expression (`previous_closing_balances`) querying the `closing_balances` CTE.
-	- Apply the **LAG() OVER ()** window function partitioned by `customer_id` and order by `date` to retrieve each customer's closing balance from the preceding month.
+	- Apply the **LAG() OVER ()** window function partitioned by `customer_id` and order by `month` to retrieve each customer's closing balance from the preceding month.
 - CTE 8: Option 1 Allocation Data (Prior Month Closing Balance)
 	- Define a Common Table Expression (`option1`) querying the `previous_closing_balances` CTE.
 	- Group records by `month` and apply **SUM()** to calculate total allocated capital based on prior-month closing balances.
@@ -557,7 +560,7 @@ ORDER BY o1.month;
 - Use an **INNER JOIN** on `month` to connect the `option1` and `option2` CTEs.
 - Use an **INNER JOIN** on `month` to connect the `option1` and `option3` CTEs.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month.
-- Apply **TO_CHAR** to each option's aggregated metric to format the numerical values as comma-separated integer strings for presentation.
+- Apply **TO_CHAR()** to each option's aggregated metric to format the numerical values as comma-separated integer strings for presentation.
 - Order the final dataset chronologically by `month` for structured presentation.
 
 #### Answer:
@@ -620,17 +623,17 @@ ORDER BY month;
 #### Steps:
 - Define a Common Table Expression (`daily_activity`) querying the `customer_transactions` table.
 - Group records by `customer_id` and `date` to aggregate transaction activity per individual customer daily.
-- Apply a **CASE** statement inside a **SUM** aggregate function to calculate daily net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Apply a **CASE** statement inside a **SUM()** aggregate function to calculate daily net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
 - Define a Common Table Expression (`daily_calendar`).
-- Perform a **CROSS JOIN** between distinct customer IDs and a continuous daily date sequence generated via the **generate_series()** function to create a continuous, uninterrupted chronological timeline.
+- Perform a **CROSS JOIN** between distinct customer IDs and a continuous daily date sequence generated via the **GENERATE_SERIES()** function to create a continuous, uninterrupted chronological timeline.
 - Define a Common Table Expression (`daily_balance`) querying the `daily_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `date` between `daily_calendar` and `daily_activity` CTEs to ensure inactive days with zero transactions are preserved.
-- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Apply **COALESCE()** to replace `NULL` values with 0 for inactive days.
 - Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `date` to compute each customer's daily running balance.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month in the main query.
 - Apply a **GREATEST()** constraint to floor negative balances at 0, ensuring overdrawn accounts do not subtract from the total requirement.
 - Group by `month` and use **SUM()** to aggregate monthly non-compounding interest data across all customers.
-- Wrap the calculation with **ROUND** to present the final value as a rounded integer.
+- Wrap the calculation with **ROUND()** to present the final value as a rounded integer.
 - Order the final dataset chronologically by `month` for structured presentation.
 
 #### Answer:
@@ -711,12 +714,12 @@ ORDER BY month;
 #### Steps:
 - Define a Common Table Expression (`daily_activity`) querying the `customer_transactions` table.
 - Group records by `customer_id` and `date` to aggregate transaction activity per individual customer daily.
-- Apply a **CASE** statement inside a **SUM** aggregate function to calculate daily net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
+- Apply a **CASE** statement inside a **SUM()** aggregate function to calculate daily net cash flow by assigning positive values to deposits and negative values to withdrawals and purchases.
 - Define a Common Table Expression (`daily_calendar`).
-- Perform a **CROSS JOIN** between distinct customer IDs and a continuous daily date sequence generated via the **generate_series()** function to create a continuous, uninterrupted chronological timeline.
+- Perform a **CROSS JOIN** between distinct customer IDs and a continuous daily date sequence generated via the **GENERATE_SERIES()** function to create a continuous, uninterrupted chronological timeline.
 - Define a Common Table Expression (`daily_balance`) querying the `daily_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `date` between `daily_calendar` and `daily_activity` CTEs to ensure inactive days with zero transactions are preserved.
-- Wrap `net_change` in **COALESCE** to replace `NULL` values with 0 for inactive months.
+- Apply **COALESCE()** to replace `NULL` values with 0 for inactive days.
 - Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `date` to compute each customer's daily running balance.
 - Define a Common Table Expression (`daily_interest`) to iteratively compute compounding daily interest and dynamic daily balances.
 - Establish the anchor member by filtering daily_balance for the minimum start date, seeding the starting balance rounded to 2 decimal places and setting initial `interest_earned` to 0.
@@ -726,7 +729,7 @@ ORDER BY month;
 - Use the **GREATEST()** function to ensure interest is only awarded to positive balances, ignoring any overdrawn days.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month in the main query.
 - Group by `month` and use **SUM()** to aggregate monthly compounding interest data across all customers.
-- Wrap the calculation with **ROUND** to present the final value as a rounded integer.
+- Wrap the calculation with **ROUND()** to present the final value as a rounded integer.
 - Order the final dataset chronologically by `month` for structured presentation.
 
 #### Answer:
