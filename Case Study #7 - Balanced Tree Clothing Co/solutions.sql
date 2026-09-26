@@ -39,12 +39,57 @@ FROM (
 ) AS txn_products;
 
 -- 3. What are the 25th, 50th and 75th percentile values for the revenue per transaction?
+WITH revenue AS(
+	SELECT
+		txn_id,
+		SUM(qty * price) AS total_revenue
+	FROM sales
+	GROUP BY txn_id
+)
 
+SELECT 
+    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY total_revenue) AS percentile_25,
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY total_revenue) AS percentile_50,
+    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY total_revenue) AS percentile_75
+FROM revenue;
 
 -- 4. What is the average discount value per transaction?
+WITH discount AS(
+	SELECT
+		txn_id,
+		SUM(qty * price * discount / 100.0) AS total_discount
+	FROM sales
+	GROUP BY txn_id
+)
 
+SELECT
+	ROUND(AVG(total_discount), 2) AS avg_discount
+FROM discount
 
 -- 5. What is the percentage split of all transactions for members vs non-members?
+WITH transactions AS(
+	SELECT
+		COUNT(DISTINCT txn_id) FILTER (WHERE member = 't') AS members,
+		COUNT(DISTINCT txn_id) FILTER (WHERE member = 'f') AS non_members,
+		COUNT(DISTINCT txn_id) AS total
+	FROM sales
+)
 
+SELECT
+	ROUND((100.0 * members / total), 2) AS percentage_members,
+	ROUND((100.0 * non_members / total), 2) AS percentage_non_members
+FROM transactions;
 
 -- 6. What is the average revenue for member transactions and non-member transactions?
+WITH transactions AS (
+	SELECT
+		txn_id,
+		member,
+		SUM(qty * price) AS total_revenue
+	FROM sales
+	GROUP BY txn_id, member
+)
+SELECT
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS members_average,
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS non_members_average
+FROM transactions;
