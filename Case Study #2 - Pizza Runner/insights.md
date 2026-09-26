@@ -57,7 +57,7 @@ FROM t_customer_orders;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function to tally all rows, representing the total volume of individual pizza orders placed.
+- Apply the **COUNT()** aggregate function to tally all rows, representing the total volume of individual pizza orders placed.
 - (Optional) Assign the alias `pizza_order_count` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -73,7 +73,7 @@ FROM t_customer_orders;
 ```
 
 #### Steps:
-- Apply the **COUNT** aggregate function with **DISTINCT** to isolate and count only unique order identifiers, ensuring orders with multiple pizzas are tallied as a single transaction.
+- Use **COUNT DISTINCT** to isolate and count only unique order identifiers, ensuring orders with multiple pizzas are tallied as a single transaction.
 - (Optional) Assign the alias `unique_order_count` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -94,7 +94,7 @@ GROUP BY runner_id;
 #### Steps:
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the filtered records by `runner_id` to aggregate delivery metrics per individual runner.
-- Use the **COUNT** aggregate function to tally the total number of successful orders delivered per runner.
+- Use the **COUNT()** aggregate function to tally the total number of successful orders delivered per runner.
 
 #### Answer:
 | runner_id | successful_orders |
@@ -123,7 +123,7 @@ ORDER BY pn.pizza_name;
 - Use an **INNER JOIN** on `pizza_id` to connect the `t_customer_orders` and `pizza_names` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the filtered records by `pizza_name` to aggregate delivery metrics per individual pizza type.
-- Use the **COUNT** aggregate function to tally the total volume of pizzas delivered for each pizza type.
+- Use the **COUNT()** aggregate function to tally the total volume of pizzas delivered for each pizza type.
 - (Optional) Order the final dataset in ascending sequence by `pizza_name` for structured presentation.
 
 #### Answer:
@@ -176,9 +176,9 @@ LIMIT 1;
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the filtered records by `order_id` to break down delivered pizzas per individual order.
-- Use the **COUNT** aggregate function to tally the total volume of pizzas delivered per order.
+- Use the **COUNT()** aggregate function to tally the total volume of pizzas delivered per order.
 - Sort the aggregated results in descending order by `pizzas_delivered` to keep the highest number on top.
-- Apply **LIMIT** to isolate the single order with the maximum number of delivered pizzas.
+- Apply **LIMIT 1** to isolate the single order with the maximum number of delivered pizzas.
 
 #### Answer:
 | order_id | pizzas_delivered |
@@ -203,8 +203,8 @@ ORDER BY co.customer_id;
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
 - Group the filtered records by `customer_id` to calculate the metrics per customer.
-- Use the **SUM** aggregate function with a **CASE** statement counting those pizzas with at least one modification and assigning the alias `change`.
-- Use the **SUM** aggregate function with a **CASE** statement counting those pizzas that had no modifications whatsoever assigning the alias `no_change`.
+- Use the **SUM()** aggregate function with a **CASE** statement counting those pizzas with at least one modification and assigning the alias `change`.
+- Use the **SUM()** aggregate function with a **CASE** statement counting those pizzas that had no modifications whatsoever assigning the alias `no_change`.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -229,7 +229,7 @@ WHERE ro.cancellation IS NULL;
 #### Steps:
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
-- Use the **SUM** aggregate function with a **CASE** statement to tally pizzas that contain both exclusions and extras.
+- Use the **SUM()** aggregate function with a **CASE** statement to tally pizzas that contain both exclusions and extras.
 
 #### Answer:
 | changed_pizza |
@@ -247,9 +247,9 @@ ORDER BY order_hour;
 ```
 
 #### Steps:
-- Use the **EXTRACT(HOUR FROM)** function to pull the hour component from the `order_time` column, assigning the alias `order_hour`.
+- Use the **EXTRACT(HOUR FROM ...)** function to pull the hour component from the `order_time` column, assigning the alias `order_hour`.
 - Group the records by `order_hour` to calculate the metrics for each hour of the day.
-- Apply the **COUNT** aggregate function to tally the total volume of pizzas ordered.
+- Apply the **COUNT()** aggregate function to tally the total volume of pizzas ordered.
 - (Optional) Order the final dataset in ascending sequence by `order_hour` for structured presentation.
 
 #### Answer:
@@ -273,10 +273,10 @@ ORDER BY EXTRACT(ISODOW FROM order_time);
 ```
 
 #### Steps:
-- Use the **TO_CHAR** function to extract and format `order_time` into the full name of the day of the week.
-- Apply the **COUNT DISTINCT** aggregate function to tally the total volume of unique orders per day rather than individual pizza line items.
+- Use the **TO_CHAR()** function to extract and format `order_time` into the full name of the day of the week.
+- Use **COUNT DISTINCT** to tally the total volume of unique orders per day rather than individual pizza line items.
 - Group the records by `day_of_week` and `order_time` to enable proper chronological sorting.
-- (Optional) Order the final dataset in ascending sequence by `order_time` using the **EXTRACT(ISODOW FROM)** function to present days chronologically rather than alphabetically.
+- (Optional) Order the final dataset in ascending sequence by `order_time` using the **EXTRACT(ISODOW FROM ...)** function to present days chronologically rather than alphabetically.
 
 #### Answer:
 | day_of_week | total_orders |
@@ -305,7 +305,7 @@ ORDER BY registration_week;
 - Divide the elapsed days by 7 and apply **FLOOR()** with integer casting.
 - Add 1 to create sequential 1-week period buckets starting cleanly at 1, assigning the alias `registration_week`.
 - Group the records by `registration_week` to calculate the metrics per week.
-- Apply the **COUNT** aggregate function to tally the total volume of runner signups within each weekly period.
+- Apply the **COUNT()** aggregate function to tally the total volume of runner signups within each weekly period.
 - (Optional) Order the final output by `registration_week` in ascending sequence for clean chronological reporting.
 
 #### Note:
@@ -348,9 +348,9 @@ ORDER BY runner_id;
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the joined records by `order_id`, `runner_id`, `order_time`, and `pickup_time` to ensure a unique grain per order transaction.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
-- Apply the **AVG** aggregate function, grouping the records by `runner_id` to calculate the metric per runner.
+- Apply the **AVG()** aggregate function, grouping the records by `runner_id` to calculate the metric per runner.
 - Cast the resulting floating-point average to **NUMERIC** to avoid errors.
-- Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
+- Wrap it in **ROUND()** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final output in ascending sequence by `runner_id` for structured presentation.
 
 #### Answer:
@@ -388,9 +388,9 @@ ORDER BY num_pizzas;
 - Define a Common Table Expression (`order_time`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the filtered records by `order_id`, `order_time`, and `pickup_time` to establish a unique transaction grain per order.
-- Use the **COUNT** aggregate function to tally the total volume of pizzas for each order.
+- Use the **COUNT()** aggregate function to tally the total volume of pizzas for each order.
 - Calculate the time interval between `order_time` and `pickup_time` by subtracting them, convert it to seconds using **EXTRACT(EPOCH FROM ...)**, and divide by 60 to transform the value into minutes.
-- Apply the **AVG** aggregate function to compute `average_time` per pizza count group.
+- Apply the **AVG()** aggregate function to compute `average_time` per pizza count group.
 - Cast the resulting floating-point average to **NUMERIC** to avoid errors.
 - Divide the `average_time` by `num_pizzas` to compute `average_time_per_pizza` for direct efficiency comparison.
 - Group and order the final output by `num_pizzas`.
@@ -431,8 +431,8 @@ ORDER BY customer_id;
 - Apply a **WHERE** clause (`distance IS NOT NULL`) to exclude cancelled orders.
 - Apply **DISTINCT** to collapse duplicate rows caused by joining the pizza-level detail table to the order-level runner table, ensuring each trip distance is represented uniquely per customer.
 - Group the records by `customer_id` to calculate the metrics per customer.
-- Apply the **AVG** aggregate function to the `distance` column to compute the average for each customer.
-- Wrap it in **ROUND** to present clean metrics rounded to two decimal places.
+- Apply the **AVG()** aggregate function to the `distance` column to compute the average for each customer.
+- Wrap it in **ROUND()** to present clean metrics rounded to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
 #### Answer:
@@ -456,8 +456,8 @@ WHERE duration IS NOT NULL;
 
 #### Steps:
 - Apply a **WHERE** clause (`duration IS NOT NULL`) to exclude cancelled orders.
-- Apply the **MAX** aggregate function to calculate the longest delivery time as `longest_delivery`.
-- Apply the **MIN** aggregate function to calculate the shortest delivery time as `shortest_delivery`.
+- Apply the **MAX()** aggregate function to calculate the longest delivery time as `longest_delivery`.
+- Apply the **MIN()** aggregate function to calculate the shortest delivery time as `shortest_delivery`.
 - Subtract `shortest_delivery` from `longest_delivery` to calculate the variance between the fastest and slowest deliveries.
 
 #### Answer:
@@ -509,10 +509,10 @@ ORDER BY runner_id;
 
 #### Steps:
 - Group records by `runner_id` to compute the success percentage individually for each runner.
-- Apply conditional aggregation using **COUNT** and **FILTER (WHERE ...)** to isolate the count of successful deliveries per runner.
-- Divide using **COUNT** to calculate the proportion of successful deliveries out of all assigned orders.
+- Apply conditional aggregation using **COUNT()** and **FILTER (WHERE ...)** to isolate the count of successful deliveries per runner.
+- Divide using **COUNT()** to calculate the proportion of successful deliveries out of all assigned orders.
 - Multiply the number of successful deliveries by 100.0 to convert the ratio into a percentage.
-- Wrap the calculation in **ROUND** to format the result to two decimal places.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
 - (Optional) Order the final dataset in ascending sequence by `runner_id` for structured presentation.
 
 #### Answer:
@@ -552,7 +552,7 @@ ORDER BY t.pizza_name;
 - Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest comma-delimited topping IDs into individual rows for each pizza.
 - Cast the split values to **INTEGER** to enable clean relational joining.
 - Use an **INNER JOIN** on `topping_id` to connect the `toppings` CTE and the `pizza_toppings` table.
-- Apply **STRING_AGG** ordered by `topping_id` to concatenate the ingredient names back into a comma-separated list.
+- Apply **STRING_AGG()** ordered by `topping_id` to concatenate the ingredient names back into a comma-separated list.
 - Group and order the final output by `pizza_name`.
 
 #### Answer:
@@ -690,8 +690,8 @@ ORDER BY op.record_id;
 - Define a Common Table Expression (`exclusions`) that joins the `ordered_pizzas` CTE and the `pizza_toppings` table on `topping_id`.
 - Apply a **WHERE** clause (`exclusions IS NOT NULL`) to filter out missing records.
 - Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to split comma-delimited `exclusions` strings into individual rows for each pizza.
-- Cast split values to **INTEGER** and apply **STRING_AGG** sorted by `topping_id` and grouped by `record_id` to rebuild an ordered, comma-separated text list.
-- Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and **STRING_AGG** re-aggregation logic to `extras`.
+- Cast split values to **INTEGER** and apply **STRING_AGG()** sorted by `topping_id` and grouped by `record_id` to rebuild an ordered, comma-separated text list.
+- Define a Common Table Expression (`additions`) applying the same unnesting, integer casting, filtering, and **STRING_AGG()** re-aggregation logic to `extras`.
 - Perform an **INNER JOIN** against `pizza_names` on `pizza_id`, and **LEFT JOIN** both modification CTEs back to `ordered_pizzas` on `record_id`.
 - Apply string concatenation (||) combined with **COALESCE** to dynamically append ` - Exclude ...` and ` - Extra ...` label strings only when modifications are present.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
@@ -800,7 +800,7 @@ ORDER BY op.record_id;
 - Group the joined records by `record_id` and `topping_name` and apply the **COUNT** aggregate function to compute individual topping quantities.
 - Use an **INNER JOIN** from `ingredient_counts` to `ordered_pizzas` on `record_id` and to `pizza_names` on `pizza_id`.
 - Group the main query results by `record_id`, `order_id` and `pizza_name` to preserve individual line-item granularity across duplicate pizza orders.
-- Apply string concatenation (||) combined with **STRING_AGG** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER**.
+- Apply string concatenation (||) combined with **STRING_AGG()** and a **CASE** statement to dynamically prepend quantity multipliers (2x) when an ingredient count exceeds 1, sorting by `topping_name` using **LOWER**.
 - (Optional) Order the final output by `record_id` in ascending sequence to preserve the original transaction order.
 
 #### Answer:
@@ -887,7 +887,7 @@ ORDER BY quantity DESC;
 	- Apply **CROSS JOIN LATERAL** with **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest exclusions toppings, and casting split values to **INTEGER**.
 	- Subtracts unnested exclusions using **EXCEPT ALL**.
 - Use an **INNER JOIN** on `topping_id` to connect the `ingredient_list` CTE and the `pizza_toppings` table.
-- Group the joined records by `topping_name` and apply the **COUNT** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
+- Group the joined records by `topping_name` and apply the **COUNT()** to tally the total volume of each topping consumed across all delivered pizzas, aliasing the aggregate as `quantity`.
 - Order the final dataset in descending sequence by `quantity` for structured presentation.
 
 #### Answer:
@@ -923,7 +923,7 @@ WHERE ro.cancellation IS NULL;
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `t_runner_orders` tables.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
 - Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
-- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
+- Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
 | revenue |
@@ -954,9 +954,9 @@ FROM delivered_pizzas
 #### Steps:
 - Define a Common Table Expression (`delivered_pizzas`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
-- Use a correlated scalar subquery with **COUNT** aggregate function over **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest and count extra toppings for each order line item.
+- Use a correlated scalar subquery with **COUNT()** aggregate function over **REGEXP_SPLIT_TO_TABLE** with the delimiter pattern [,\s]+ to unnest and count extra toppings for each order line item.
 - Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
-- Apply the **SUM** aggregate function to compute total gross revenue as `revenue`.
+- Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
 | revenue |
@@ -1032,9 +1032,9 @@ ORDER BY co.order_id;
 - Use an **INNER JOIN** on `order_id` to connect the `t_customer_orders` and `runner_ratings` tables.
 - Apply a filter condition within the join (`cancellation IS NULL`) to exclude cancelled orders.
 - Group the joined records by all order and delivery attributes to collapse pizza-level line items into a single order grain.
-- Calculate pickup delay in minutes using **EXTRACT(EPOCH FROM ...)**, divide it by 60, wrapping in **ROUND** and casting to **INTEGER** as `time_difference`.
+- Calculate pickup delay in minutes using **EXTRACT(EPOCH FROM ...)**, divide it by 60, wrapping in **ROUND()** and casting to **INTEGER** as `time_difference`.
 - Calculate average delivery speed in km/h by dividing `distance` by `duration` and multiply by 60 rounded to two decimal places as `average_speed`.
-- Apply **COUNT** to tally the total volume of pizzas ordered per delivery as `total_pizzas`.
+- Apply **COUNT()** to tally the total volume of pizzas ordered per delivery as `total_pizzas`.
 - (Optional) Order the final dataset in ascending sequence by `order_id` for structured presentation.
 
 #### Answer:
@@ -1074,7 +1074,7 @@ FROM total_revenue tr, total_payouts tp;
 #### Steps:
 - Define a Common Table Expression (`total_payouts`) to process the `t_runner_orders` table.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
-- Use the **SUM** aggregate function to compute total distance covered and multiply by $0.30 per kilometer to compute total runner delivery payouts as `payout`.
+- Use the **SUM()** aggregate function to compute total distance covered and multiply by $0.30 per kilometer to compute total runner delivery payouts as `payout`.
 - Define a Common Table Expression (`total_revenue`) that joins the `t_customer_orders` and `t_runner_orders` tables on `order_id`.
 - Apply a **WHERE** clause (`cancellation IS NULL`) to exclude cancelled orders and isolate delivered pizzas.
 - Use a conditional **CASE** statement to assign prices based on pizza type ($12 for Meatlovers, $10 for Vegetarian).
