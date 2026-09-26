@@ -238,7 +238,7 @@ generated_payments AS (
 		plan_name,
 		previous_plan_id,
 		amount,
-		generate_series(
+		GENERATE_SERIES(
 			start_date,
 			LEAST(next_plan_date - INTERVAL '1 day', '2020-12-31'::DATE),
 			CASE WHEN plan_id IN (1, 2) THEN INTERVAL '1 month' ELSE INTERVAL '1 year' END

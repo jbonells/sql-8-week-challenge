@@ -180,10 +180,10 @@ WHERE plan_id = 4 AND plan_sequence = 2;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
+- Define a Common Table Expression (`ordered_plans`) querying the `subscriptions` table.
 - Use **ROW_NUMBER() OVER ()** to chronologically sequence each customer's plan transitions.
 - Apply a **WHERE** clause (`plan_id = 4` and `plan_sequence = 2`) to isolate customers whose second subscription event was a churn, capturing cancellations immediately following an initial free trial.
-- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers fitting this exact conversion path, aliasing the aggregate as `customers_count`.
+- Use **COUNT DISTINCT** to calculate the unique volume of customers fitting this exact conversion path, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by total distinct customers retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
 - Wrap the calculation in **ROUND()** to format the result to zero decimal places.
 
@@ -219,12 +219,12 @@ ORDER BY p.plan_id;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
+- Define a Common Table Expression (`ordered_plans`) querying the `subscriptions` table.
 - Use **ROW_NUMBER() OVER ()** to chronologically sequence each customer's plan transitions.
 - Use an **INNER JOIN** on `plan_id` to connect the `ordered_plans` CTE and the `plans` tables.
 - Apply a **WHERE** clause (`plan_sequence = 2`) to isolate each customer's second plan transition (the plan immediately following their initial trial).
 - Group the filtered records by `plan_id` and `plan_name` to aggregate conversion metrics per plan.
-- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers converting to each target plan, aliasing the aggregate as `customers_count`.
+- Use **COUNT DISTINCT** to calculate the unique volume of customers converting to each target plan, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by total distinct customers retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
 - Wrap the calculation in **ROUND()** to format the result to one decimal places.
 - (Optional) Order the final dataset in ascending sequence by `plan_id` for structured presentation.
@@ -265,13 +265,13 @@ ORDER BY p.plan_id;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`ordered_plans`) to process the `subscriptions` table.
+- Define a Common Table Expression (`ordered_plans`) querying the `subscriptions` table.
 - Use **ROW_NUMBER() OVER ()** to rank each customer's plan transitions in reverse chronological order.
 - Apply a **WHERE** clause (`start_date <= '2020-12-31`) to isolate each customer's latest active plan as of 31st December 2020.
 - Use an **INNER JOIN** on `plan_id` to connect the `ordered_plans` CTE and the `plans` tables.
 - Apply a **WHERE** clause (`plan_sequence = 1`) to isolate each customer's latest active plan as of 31st December 2020.
 - Group the filtered records by `plan_id` and `plan_name` to aggregate conversion metrics per plan.
-- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers on each plan at year-end 2020, aliasing the aggregate as `customers_count`.
+- Use **COUNT DISTINCT** to calculate the unique volume of customers on each plan at year-end 2020, aliasing the aggregate as `customers_count`.
 - Divide `customers_count` by the total count of active customers as of 31st December 2020 retrieved via a scalar subquery, multiplying by 100.0 to convert the ratio to a percentage and force floating-point numeric precision.
 - Wrap the calculation in **ROUND()** to format the result to one decimal places.
 - (Optional) Order the final dataset in ascending sequence by `plan_id` for structured presentation.
@@ -299,7 +299,7 @@ WHERE s.start_date BETWEEN '2020-01-01' AND '2020-12-31'
 #### Steps:
 - Use an **INNER JOIN** on `plan_id` to connect the `subscriptions` and `plans` tables.
 - Apply a **WHERE** clause (`start_date BETWEEN '2020-01-01' AND '2020-12-31'` and `plan_name = 'pro annual'`) to isolate annual plan subscriptions starting between 1st January 2020 and 31st December 2020.
-- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the volume of unique customers who purchased or upgraded to a pro annual plan during 2020.
+- Use **COUNT DISTINCT** to calculate the volume of unique customers who purchased or upgraded to a pro annual plan during 2020.
 
 #### Answer:
 | annual_plan_customers |
@@ -331,13 +331,13 @@ INNER JOIN annual_plan_dates apd
 ```
 
 #### Steps:
-- Define a Common Table Expression (`trial_plan_dates`) to process the `subscriptions` table.
+- Define a Common Table Expression (`trial_plan_dates`) querying the `subscriptions` table.
 - Apply a **WHERE** clause (`plan_id = 0`) to extract each customer's trial start date as `trial_date`.
 - Define a Common Table Expression (`annual_plan_dates`) to process the `subscriptions` table.
 - Apply a **WHERE** clause (`plan_id = 3`) to extract each customer's annual plan start date as `annual_date`.
 - Use an **INNER JOIN** on `customer_id` to connect the `trial_plan_dates` and `annual_plan_dates` CTEs.
 - Subtract `trial_date` from `annual_date` to calculate the elapsed time in days between trial start and annual plan conversion per customer.
-- Apply the **AVG** aggregate function across the calculated date differences to compute the mean conversion timeframe across all converting customers.
+- Apply the **AVG()** aggregate function across the calculated date differences to compute the mean conversion timeframe across all converting customers.
 - Wrap the calculation in **ROUND()** and cast the result to **INTEGER** to return a clean, rounded whole-number metric.
 
 #### Answer:
@@ -382,9 +382,9 @@ ORDER BY bucket;
 ```
 
 #### Steps:
-- Define a Common Table Expression (`trial_plan_dates`) to process the `subscriptions` table.
+- Define a Common Table Expression (`trial_plan_dates`) querying the `subscriptions` table.
 - Apply a **WHERE** clause (`plan_id = 0`) to extract each customer's trial start date as `trial_date`.
-- Define a Common Table Expression (`annual_plan_dates`) to process the `subscriptions` table.
+- Define a Common Table Expression (`annual_plan_dates`) querying the `subscriptions` table.
 - Apply a **WHERE** clause (`plan_id = 3`) to extract each customer's annual plan start date as `annual_date`.
 - Define a Common Table Expression (`customer_durations`) that joins the `trial_plan_dates` and `annual_plan_dates` CTEs on `customer_id`.
 - Use **WIDTH_BUCKET()** on the date difference across the range 1 to 181 into 6 equal intervals to assign each conversion to a numeric `bucket`.
@@ -424,10 +424,10 @@ WHERE plan_id = 2
 ```
 
 #### Steps:
-- Define a Common Table Expression (`customer_plans`) to process the `subscriptions` table.
+- Define a Common Table Expression (`customer_plans`) querying the `subscriptions` table.
 - Use **LEAD() OVER ()** partitioned by `customer_id` and ordered by `start_date` to capture each customer's subsequent plan (`next_plan_id`) and start date (`next_plan_date`).
 - Apply a **WHERE** clause (`plan_id = 2`, `next_plan_id = 1` and `next_plan_date BETWEEN '2020-01-01' AND '2020-12-31'`) to isolate customers that downgraded from a pro monthly to a basic monthly plan in 2020.
-- Apply the **COUNT()** aggregate function with **DISTINCT** to calculate the unique volume of customers who completed this downgrade.
+- Use **COUNT DISTINCT** to calculate the unique volume of customers who completed this downgrade.
 
 #### Answer:
 | customers_downgraded |
@@ -467,7 +467,7 @@ generated_payments AS (
 		plan_name,
 		previous_plan_id,
 		amount,
-		generate_series(
+		GENERATE_SERIES(
 			start_date,
 			LEAST(next_plan_date - INTERVAL '1 day', '2020-12-31'::DATE),
 			CASE WHEN plan_id IN (1, 2) THEN INTERVAL '1 month' ELSE INTERVAL '1 year' END
@@ -496,9 +496,9 @@ ORDER BY customer_id, payment_date;
 - Apply a **WHERE** clause (`plan_id <> 0`) to exclude initial trial periods.
 - Use the **LEAD() OVER ()** window function partitioned by `customer_id` and ordered by `start_date` to capture each customer's subsequent plan start date (`next_plan_date`).
 - Use the **LAG() OVER ()** window function partitioned by `customer_id` and ordered by `start_date` to capture each customer's previous plan ID (`previous_plan_id`).
-- Define a Common Table Expression (`generated_payments`) to process the `customer_plans` CTE.
+- Define a Common Table Expression (`generated_payments`) querying the `customer_plans` CTE.
 - Apply a **WHERE** clause (`plan_id <> 4`) to exclude churn events so recurring payment schedules end upon cancellation.
-- Apply **generate_series()** to generate billing schedules.
+- Apply **GENERATE_SERIES()** to generate billing schedules.
 - Use **LEAST()** to cap billing dates at the day prior to a plan transition or 31st December 2020, whichever occurs first.
 - Use a **CASE** statement to dynamically set payment intervals based on plan type.
 - Calculate the adjusted payment amount in the main query using a **CASE** statement that deducts a $9.90 credit on the first payment when upgrading from basic monthly.
