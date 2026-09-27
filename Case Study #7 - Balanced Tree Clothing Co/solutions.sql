@@ -124,8 +124,8 @@ ORDER BY pd.segment_name;
 WITH top_selling AS (
 	SELECT
 		ROW_NUMBER() OVER (PARTITION BY pd.segment_name ORDER BY SUM(s.qty) DESC) AS ranking,
-		pd.segment_name AS segment,
-		pd.product_name AS product,
+		pd.segment_name,
+		pd.product_name,
 		SUM(s.qty) AS total_quantity    
 	FROM sales s
 	INNER JOIN product_details pd
@@ -134,31 +134,31 @@ WITH top_selling AS (
 )
 
 SELECT
-	segment,
-	product,
+	segment_name,
+	product_name,
 	total_quantity
 FROM top_selling
 WHERE ranking = 1
-ORDER BY segment;
+ORDER BY segment_name;
 
 -- 4. What is the total quantity, revenue and discount for each category?
 SELECT
-	pd.category_id,
+	pd.category_name,
     SUM(s.qty) AS total_quantity,
     SUM(s.qty * s.price) AS total_revenue,
     ROUND(SUM(s.qty * s.price * s.discount / 100.0), 2) AS total_discount
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
-GROUP BY pd.category_id
-ORDER BY pd.category_id;
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
 
 -- 5. What is the top selling product for each category?
 WITH top_selling AS (
 	SELECT
 		ROW_NUMBER() OVER (PARTITION BY pd.category_name ORDER BY SUM(s.qty) DESC) AS ranking,
-		pd.category_name AS category,
-		pd.product_name AS product,
+		pd.category_name,
+		pd.product_name,
 		SUM(s.qty) AS total_quantity    
 	FROM sales s
 	INNER JOIN product_details pd
@@ -167,12 +167,12 @@ WITH top_selling AS (
 )
 
 SELECT
-	category,
-	product,
+	category_name,
+	product_name,
 	total_quantity
 FROM top_selling
 WHERE ranking = 1
-ORDER BY category;
+ORDER BY category_name;
 
 -- 6. What is the percentage split of revenue by product for each segment?
 
