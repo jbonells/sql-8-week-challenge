@@ -242,7 +242,43 @@ INNER JOIN product_details pd
 ORDER BY penetration_percentage DESC;
 
 -- 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+WITH product_transactions AS (
+	SELECT
+		txn_id,
+		prod_id
+	FROM sales
+	GROUP BY txn_id, prod_id
+),
+all_combinations AS (
+	SELECT
+		pt1.txn_id,
+		pt1.prod_id AS p1,
+		pt2.prod_id AS p2,
+		pt3.prod_id AS p3
+	FROM product_transactions pt1
+	INNER JOIN product_transactions pt2
+		ON pt1.txn_id = pt2.txn_id
+		AND pt1.prod_id < pt2.prod_id
+	INNER JOIN product_transactions pt3
+		ON pt2.txn_id = pt3.txn_id
+		AND pt2.prod_id < pt3.prod_id
+)
 
+SELECT
+    pd1.product_name AS product_1,
+    pd2.product_name AS product_2,
+    pd3.product_name AS product_3,
+    COUNT(DISTINCT ac.txn_id) AS combinations
+FROM all_combinations ac
+INNER JOIN product_details pd1
+	ON ac.p1 = pd1.product_id
+INNER JOIN product_details pd2
+	ON ac.p2 = pd2.product_id
+INNER JOIN product_details pd3
+	ON ac.p3 = pd3.product_id
+GROUP BY pd1.product_name, pd2.product_name, pd3.product_name
+ORDER BY combinations DESC
+LIMIT 1;
 
 
 -- D. Reporting Challenge

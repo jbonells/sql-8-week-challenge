@@ -538,14 +538,63 @@ ORDER BY penetration_percentage DESC;
 
 ### 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
 ```sql
+WITH product_transactions AS (
+	SELECT
+		txn_id,
+		prod_id
+	FROM sales
+	GROUP BY txn_id, prod_id
+),
+all_combinations AS (
+	SELECT
+		pt1.txn_id,
+		pt1.prod_id AS p1,
+		pt2.prod_id AS p2,
+		pt3.prod_id AS p3
+	FROM product_transactions pt1
+	INNER JOIN product_transactions pt2
+		ON pt1.txn_id = pt2.txn_id
+		AND pt1.prod_id < pt2.prod_id
+	INNER JOIN product_transactions pt3
+		ON pt2.txn_id = pt3.txn_id
+		AND pt2.prod_id < pt3.prod_id
+)
 
+SELECT
+    pd1.product_name AS product_1,
+    pd2.product_name AS product_2,
+    pd3.product_name AS product_3,
+    COUNT(DISTINCT ac.txn_id) AS combinations
+FROM all_combinations ac
+INNER JOIN product_details pd1
+	ON ac.p1 = pd1.product_id
+INNER JOIN product_details pd2
+	ON ac.p2 = pd2.product_id
+INNER JOIN product_details pd3
+	ON ac.p3 = pd3.product_id
+GROUP BY pd1.product_name, pd2.product_name, pd3.product_name
+ORDER BY combinations DESC
+LIMIT 1;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`product_transactions`) querying the `sales` table.
+- Group records by `txn_id` and `prod_id` to isolate unique product entries per transaction.
+- Define a Common Table Expression (`total_transactions`) querying the `product_transactions` CTE (`pt1`).
+- Use an **INNER JOIN** with `product_transactions` (`pt2`) on `pt1.txn_id = pt2.txn_id AND pt1.prod_id < pt2.prod_id` to form unique pairs (p1, p2).
+- Use an **INNER JOIN** with `product_transactions` (`pt3`) on `pt2.txn_id = pt3.txn_id AND pt2.prod_id < pt3.prod_id` to form unique triplets (p1, p2, p3).
+- Query the `all_combinations` CTE.
+- Use an **INNER JOIN** with `product_details` (`pd1`) on `ac.p1 = pd1.product_id` to retrieve the name of the first product.
+- Use an **INNER JOIN** with `product_details` (`pd2`) on `ac.p2 = pd2.product_id` to retrieve the name of the second product.
+- Use an **INNER JOIN** with `product_details` (`pd3`) on `ac.p3 = pd2.product_id` to retrieve the name of the third product.
+- Use **COUNT DISTINCT** to calculate the total unique transaction volume for each three-product combination.
+- Order the final dataset in descending sequence by `combinations` to rank product combinations by frequency.
+- Use **LIMIT 1** to isolate the most frequently co-purchased product triplet.
 
 #### Answer:
-
+| product_1              | product_2                    | product_3                   | combinations |
+| ---------------------- | ---------------------------- | --------------------------- | ------------ |
+| White Tee Shirt - Mens | Grey Fashion Jacket - Womens | Teal Button Up Shirt - Mens | 352          |
 
 
 ## D. Reporting Challenge
