@@ -2,13 +2,17 @@
 
 ### 1. Update the fresh_segments.interest_metrics table by modifying the month_year column to be a date data type with the start of the month
 ```sql
-
+ALTER TABLE fresh_segments.interest_metrics
+ALTER COLUMN month_year TYPE DATE USING TO_DATE(month_year, 'MM-YYYY');
 ```
 
 #### Steps:
-- 
+- Use the **ALTER TABLE** statement to target the `fresh_segments.interest_metrics` table.
+- Use the **ALTER COLUMN** statement to modify the column definition for `month_year`.
+- Apply a **TYPE** clause to convert its data type to **DATE**.
+- Apply the **TO_DATE()** function inside the **USING** expression to parse the string format `MM-YYYY` into a valid calendar date representation.
 
-#### Answer:
+**NOTE:** I have added these steps to `schema.sql` to run the solution easily.
 
 
 ### 2. What is count of records in the fresh_segments.interest_metrics for each month_year value sorted in chronological order (earliest to latest) with the null values appearing first?

@@ -15538,3 +15538,6 @@ VALUES
   ('{"month": 7, "year": 2018, "month_year": "07-2018", "a.attribute_interest_id": 32486, "average_composition": 11.89, "average_index": 6.19, "rank": 1, "percentile_rank": 99.86}'),
 	('{"month": 7, "year": 2018, "month_year": "07-2018", "a.attribute_interest_id": 6106, "average_composition": 9.93, "average_index": 5.31, "rank": 2, "percentile_rank": 99.73}'),
 	('{"month": 7, "year": 2018, "month_year": "07-2018", "a.attribute_interest_id": 18923, "average_composition": 10.85, "average_index": 5.29, "rank": 3, "percentile_rank": 99.59}');
+
+ALTER TABLE fresh_segments.interest_metrics
+ALTER COLUMN month_year TYPE DATE USING TO_DATE(month_year, 'MM-YYYY');
