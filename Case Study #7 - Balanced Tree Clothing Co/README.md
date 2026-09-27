@@ -1,4 +1,4 @@
-# 🌲 Case Study #7 - Balanced Tree Clothing Co.
+# 🏔️ Case Study #7 - Balanced Tree Clothing Co.
 <p align="center">
 	<a href="https://8weeksqlchallenge.com/case-study-7">
 		<img src="../assets/case_study_7.png" alt="Case Study #7 - Balanced Tree Clothing Co." width="500" height="520">
