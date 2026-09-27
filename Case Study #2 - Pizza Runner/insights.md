@@ -913,7 +913,7 @@ ORDER BY quantity DESC;
 ### 1. If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner made so far if there are no delivery fees?
 ```sql
 SELECT
-	SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS revenue
+	SUM(CASE WHEN co.pizza_id = 1 THEN 12 ELSE 10 END) AS total_revenue
 FROM t_customer_orders co
 INNER JOIN t_runner_orders ro
     ON co.order_id = ro.order_id
@@ -927,9 +927,9 @@ WHERE ro.cancellation IS NULL;
 - Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
-| revenue |
-| ------- |
-| 138     |
+| total_revenue |
+| ------------- |
+| 138           |
 
 ### 2. What if there was an additional $1 charge for any pizza extras?
 - Add cheese is $1 extra
@@ -948,7 +948,7 @@ SELECT
 	SUM(
 		CASE WHEN pizza_id = 1 THEN 12 ELSE 10 END
 		+ num_extras
-    ) AS revenue
+    ) AS total_revenue
 FROM delivered_pizzas
 ```
 
@@ -960,9 +960,9 @@ FROM delivered_pizzas
 - Apply the **SUM()** aggregate function to compute total gross revenue as `revenue`.
 
 #### Answer:
-| revenue |
-| ------- |
-| 142     |
+| total_revenue |
+| ------------- |
+| 142           |
 
 ### 3. The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, how would you design an additional table for this new dataset - generate a schema for this new table and insert your own data for ratings for each successful customer order between 1 to 5.
 ```sql
