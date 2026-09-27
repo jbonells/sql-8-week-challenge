@@ -589,3 +589,48 @@ LIMIT 1;
 -- E. Bonus Challenge
 -- Use a single SQL query to transform the product_hierarchy and product_prices datasets to the product_details table.
 -- Hint: you may want to consider using a recursive CTE to solve this problem!
+WITH RECURSIVE hierarchy_path AS (
+	SELECT
+		id,
+		parent_id,
+		level_name,
+		id AS category_id,
+		level_text AS category_name,
+		CAST(NULL AS INTEGER) AS segment_id,
+		CAST(NULL AS VARCHAR) AS segment_name,
+		CAST(NULL AS INTEGER) AS style_id,
+		CAST(NULL AS VARCHAR) AS style_name
+	FROM product_hierarchy
+	WHERE parent_id IS NULL
+
+    UNION ALL
+
+    SELECT
+		ph.id,
+		ph.parent_id,
+		ph.level_name,
+		hp.category_id,
+		hp.category_name,
+		CASE WHEN ph.level_name = 'Segment' THEN ph.id ELSE hp.segment_id END,
+		CASE WHEN ph.level_name = 'Segment' THEN ph.level_text ELSE hp.segment_name END,
+		CASE WHEN ph.level_name = 'Style' THEN ph.id ELSE hp.style_id END,
+		CASE WHEN ph.level_name = 'Style' THEN ph.level_text ELSE hp.style_name END
+    FROM product_hierarchy ph
+    INNER JOIN hierarchy_path hp
+		ON ph.parent_id = hp.id
+)
+SELECT
+	pp.product_id,
+	pp.price,
+	CONCAT(hp.style_name, ' ', hp.segment_name, ' - ', hp.category_name) AS product_name,
+	hp.category_id,
+	hp.segment_id,
+	hp.style_id,
+	hp.category_name,
+	hp.segment_name,
+	hp.style_name
+FROM hierarchy_path hp
+INNER JOIN product_prices pp
+	ON hp.id = pp.id
+WHERE hp.level_name = 'Style'
+ORDER BY hp.category_id, hp.segment_id, hp.style_id;

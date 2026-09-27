@@ -999,10 +999,76 @@ LIMIT 1;
 ### Use a single SQL query to transform the product_hierarchy and product_prices datasets to the product_details table.
 - Hint: you may want to consider using a recursive CTE to solve this problem!
 ```sql
+WITH RECURSIVE hierarchy_path AS (
+	SELECT
+		id,
+		parent_id,
+		level_name,
+		id AS category_id,
+		level_text AS category_name,
+		CAST(NULL AS INTEGER) AS segment_id,
+		CAST(NULL AS VARCHAR) AS segment_name,
+		CAST(NULL AS INTEGER) AS style_id,
+		CAST(NULL AS VARCHAR) AS style_name
+	FROM product_hierarchy
+	WHERE parent_id IS NULL
 
+    UNION ALL
+
+    SELECT
+		ph.id,
+		ph.parent_id,
+		ph.level_name,
+		hp.category_id,
+		hp.category_name,
+		CASE WHEN ph.level_name = 'Segment' THEN ph.id ELSE hp.segment_id END,
+		CASE WHEN ph.level_name = 'Segment' THEN ph.level_text ELSE hp.segment_name END,
+		CASE WHEN ph.level_name = 'Style' THEN ph.id ELSE hp.style_id END,
+		CASE WHEN ph.level_name = 'Style' THEN ph.level_text ELSE hp.style_name END
+    FROM product_hierarchy ph
+    INNER JOIN hierarchy_path hp
+		ON ph.parent_id = hp.id
+)
+SELECT
+	pp.product_id,
+	pp.price,
+	CONCAT(hp.style_name, ' ', hp.segment_name, ' - ', hp.category_name) AS product_name,
+	hp.category_id,
+	hp.segment_id,
+	hp.style_id,
+	hp.category_name,
+	hp.segment_name,
+	hp.style_name
+FROM hierarchy_path hp
+INNER JOIN product_prices pp
+	ON hp.id = pp.id
+WHERE hp.level_name = 'Style'
+ORDER BY hp.category_id, hp.segment_id, hp.style_id;
 ```
 
 #### Steps:
-- 
+- Define a recursive Common Table Expression (`hierarchy_path`) querying root-level records from the `product_hierarchy` table.
+- Apply a **WHERE** clause (`parent_id IS NULL`) to isolate top-tier category root nodes.
+- Initialise columns with **CAST(NULL ...)** values to define the recursion schema.
+- Use **UNION ALL** with `product_hierarchy` joined to `hierarchy_path` on `parent_id = id` to recursively traverse child nodes.
+- Apply **CASE** conditional logic to dynamically pass down or populate segment and style metadata as the hierarchy expands downward.
+- Use an **INNER JOIN** on `id` to connect the `product_prices` table and `hierarchy_path` CTE.
+- Apply a **WHERE** clause (`level_name = 'Style'`) to isolate product style-level leaf records.
+- Apply the **CONCAT()** function to combine `style_name`, `segment_name`, and `category_name` to assign the formatted column alias (`product_name`).
+- Order the final dataset in ascending sequence by `category_id`, `segment_id`, and `style_id` to match the product_details table.
 
 #### Answer:
+| product_id | price | product_name                     | category_id | segment_id | style_id | category_name | segment_name | style_name          |
+| ---------- | ----- | -------------------------------- | ----------- | ---------- | -------- | ------------- | ------------ | ------------------- |
+| c4a632     | 13    | Navy Oversized Jeans - Womens    | 1           | 3          | 7        | Womens        | Jeans        | Navy Oversized      |
+| e83aa3     | 32    | Black Straight Jeans - Womens    | 1           | 3          | 8        | Womens        | Jeans        | Black Straight      |
+| e31d39     | 10    | Cream Relaxed Jeans - Womens     | 1           | 3          | 9        | Womens        | Jeans        | Cream Relaxed       |
+| d5e9a6     | 23    | Khaki Suit Jacket - Womens       | 1           | 4          | 10       | Womens        | Jacket       | Khaki Suit          |
+| 72f5d4     | 19    | Indigo Rain Jacket - Womens      | 1           | 4          | 11       | Womens        | Jacket       | Indigo Rain         |
+| 9ec847     | 54    | Grey Fashion Jacket - Womens     | 1           | 4          | 12       | Womens        | Jacket       | Grey Fashion        |
+| 5d267b     | 40    | White Tee Shirt - Mens           | 2           | 5          | 13       | Mens          | Shirt        | White Tee           |
+| c8d436     | 10    | Teal Button Up Shirt - Mens      | 2           | 5          | 14       | Mens          | Shirt        | Teal Button Up      |
+| 2a2353     | 57    | Blue Polo Shirt - Mens           | 2           | 5          | 15       | Mens          | Shirt        | Blue Polo           |
+| f084eb     | 36    | Navy Solid Socks - Mens          | 2           | 6          | 16       | Mens          | Socks        | Navy Solid          |
+| b9a74d     | 17    | White Striped Socks - Mens       | 2           | 6          | 17       | Mens          | Socks        | White Striped       |
+| 2feb6b     | 29    | Pink Fluro Polkadot Socks - Mens | 2           | 6          | 18       | Mens          | Socks        | Pink Fluro Polkadot |
