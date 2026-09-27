@@ -103,7 +103,7 @@ LIMIT 1;
 - Group the joined records by `product_name` to evaluate item popularity across all customer purchases.
 - Apply the **COUNT()** aggregate function to `product` on the `sales` table to add the total times all customers have purchased the item.
 - Order the final output in descending sequence by `times_purchased`.
-- USE **LIMIT 1** to show the most purchased item.
+- Use **LIMIT 1** to show the most purchased item.
 
 #### Answer:
 | product_name | times_purchased |
