@@ -142,9 +142,9 @@ ORDER BY txn_type;
 #### Answer:
 | txn_type   | transaction_count | total_amount |
 | ---------- | ----------------- | ------------ |
-| deposit    | 2671              | 1359168      |
-| purchase   | 1617              | 806537       |
-| withdrawal | 1580              | 793003       |
+| deposit    | 2671              | 1,359,168    |
+| purchase   | 1617              | 806,537      |
+| withdrawal | 1580              | 793,003      |
 
 ### 2. What is the average total historical deposit counts and amounts for all customers?
 ```sql
