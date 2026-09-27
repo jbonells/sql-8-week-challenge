@@ -261,7 +261,7 @@ ORDER BY year, demographic;
 #### Steps:
 - Group records by `year` and `demographic` to aggregate sales for each year and demographic combination.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each group.
-- Apply a **SUM() OVER()** window function with partition by `calendar_year` to calculate overall annual sales across all demographics.
+- Apply a **SUM() OVER()** window function partitioned by `calendar_year` to calculate overall annual sales across all demographics.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by overall annual sales.
 - Wrap the calculation in **ROUND()** to format the final percentage metrics to two decimal places.
 - Order the final dataset in ascending sequence by `year` and `demographic` for structured presentation.
