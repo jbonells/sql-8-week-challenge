@@ -71,7 +71,7 @@ FROM sales;
 ### 2. What is the average unique products purchased in each transaction?
 ```sql
 SELECT
-	ROUND(AVG(unique_products), 2) AS avg_unique_products
+	ROUND(AVG(unique_products), 2) AS average_unique_products
 FROM (
 	SELECT
 		txn_id,
@@ -90,9 +90,9 @@ FROM (
 
 
 #### Answer:
-| avg_unique_products |
-| ------------------- |
-| 6.04                |
+| average_unique_products |
+| ----------------------- |
+| 6.04                    |
 
 ### 3. What are the 25th, 50th and 75th percentile values for the revenue per transaction?
 ```sql
@@ -133,7 +133,7 @@ WITH discount AS(
 )
 
 SELECT
-	ROUND(AVG(total_discount), 2) AS avg_discount
+	ROUND(AVG(total_discount), 2) AS average_discount
 FROM discount
 ```
 
@@ -145,9 +145,9 @@ FROM discount
 - Wrap the calculation in **ROUND()** to format the average to two decimal places.
 
 #### Answer:
-| avg_discount |
-| ------------ |
-| 62.49        |
+| average_discount |
+| ---------------- |
+| 62.49            |
 
 ### 5. What is the percentage split of all transactions for members vs non-members?
 ```sql
@@ -190,8 +190,8 @@ WITH transactions AS (
 	GROUP BY txn_id, member
 )
 SELECT
-	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS members_average,
-	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS non_members_average
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS average_members,
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS average_non_members
 FROM transactions;
 ```
 
@@ -204,7 +204,7 @@ FROM transactions;
 - Wrap the calculations in **ROUND()** to format the results to two decimal places.
 
 #### Answer:
-| members_average | non_members_average |
+| average_members | average_non_members |
 | --------------- | ------------------- |
 | 516.27          | 515.04              |
 
@@ -376,36 +376,110 @@ ORDER BY category_name;
 
 ### 6. What is the percentage split of revenue by product for each segment?
 ```sql
-
+SELECT
+	pd.segment_name,
+	pd.product_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.segment_name),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.segment_name, pd.product_name
+ORDER BY pd.segment_name, percentage_of_revenue DESC;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `sales` and `product_details` tables.
+- Group the joined records by `segment_name` and `product_name` to aggregate sales per product within each segment.
+- Apply the **SUM()** aggregate function to calculate grouped product revenue.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function partitioned by `segment_name` to calculate total segment revenue across all products within each segment.
+- Multiply grouped product revenue by 100.0 and divide by total segment revenue to compute the relative revenue contribution per product within its segment.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `segment_name` and descending sequence by `percentage_of_revenue` for structured presentation.
 
 #### Answer:
-
+| segment_name | product_name                     | percentage_of_revenue |
+| ------------ | -------------------------------- | --------------------- |
+| Jacket       | Grey Fashion Jacket - Womens     | 57.03                 |
+| Jacket       | Khaki Suit Jacket - Womens       | 23.51                 |
+| Jacket       | Indigo Rain Jacket - Womens      | 19.45                 |
+| Jeans        | Black Straight Jeans - Womens    | 58.15                 |
+| Jeans        | Navy Oversized Jeans - Womens    | 24.06                 |
+| Jeans        | Cream Relaxed Jeans - Womens     | 17.79                 |
+| Shirt        | Blue Polo Shirt - Mens           | 53.60                 |
+| Shirt        | White Tee Shirt - Mens           | 37.43                 |
+| Shirt        | Teal Button Up Shirt - Mens      | 8.98                  |
+| Socks        | Navy Solid Socks - Mens          | 44.33                 |
+| Socks        | Pink Fluro Polkadot Socks - Mens | 35.50                 |
+| Socks        | White Striped Socks - Mens       | 20.18                 |
 
 ### 7. What is the percentage split of revenue by segment for each category?
 ```sql
-
+SELECT
+	pd.category_name,
+	pd.segment_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.category_name),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.category_name, pd.segment_name
+ORDER BY pd.category_name, percentage_of_revenue DESC;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `sales` and `product_details` tables.
+- Group the joined records by `category_name` and `segment_name` to aggregate sales per segment within each category.
+- Apply the **SUM()** aggregate function to calculate grouped segment revenue.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function partitioned by `category_name` to calculate total category revenue across all segments within each category.
+- Multiply grouped segment revenue by 100.0 and divide by total category revenue to compute relative revenue contribution per segment within its category.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `category_name` and descending sequence by `percentage_of_revenue` for structured presentation.
 
 #### Answer:
-
+| category_name | segment_name | percentage_of_revenue |
+| ------------- | ------------ | --------------------- |
+| Mens          | Shirt        | 56.87                 |
+| Mens          | Socks        | 43.13                 |
+| Womens        | Jacket       | 63.79                 |
+| Womens        | Jeans        | 36.21                 |
 
 ### 8. What is the percentage split of total revenue by category?
 ```sql
-
+SELECT
+	pd.category_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `sales` and `product_details` tables.
+- Group the joined records by `category_name` to aggregate sales per category.
+- Apply the **SUM()** aggregate function calculate grouped category revenue.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function to calculate overall total revenue across all categories.
+- Multiply grouped category revenue by 100.0 and divide by overall total revenue to compute the relative revenue contribution per category.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `category_name` for structured presentation.
 
 #### Answer:
-
+| category_name | percentage_of_revenue |
+| ------------- | --------------------- |
+| Mens          | 55.38                 |
+| Womens        | 44.62                 |
 
 ### 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
 ```sql

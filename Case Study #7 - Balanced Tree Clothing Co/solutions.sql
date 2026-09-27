@@ -29,7 +29,7 @@ FROM sales;
 
 -- 2. What is the average unique products purchased in each transaction?
 SELECT
-	ROUND(AVG(unique_products), 2) AS avg_unique_products
+	ROUND(AVG(unique_products), 2) AS average_unique_products
 FROM (
 	SELECT
 		txn_id,
@@ -63,7 +63,7 @@ WITH discount AS(
 )
 
 SELECT
-	ROUND(AVG(total_discount), 2) AS avg_discount
+	ROUND(AVG(total_discount), 2) AS average_discount
 FROM discount
 
 -- 5. What is the percentage split of all transactions for members vs non-members?
@@ -90,8 +90,8 @@ WITH transactions AS (
 	GROUP BY txn_id, member
 )
 SELECT
-	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS members_average,
-	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS non_members_average
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS average_members,
+	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS average_non_members
 FROM transactions;
 
 
@@ -175,13 +175,48 @@ WHERE ranking = 1
 ORDER BY category_name;
 
 -- 6. What is the percentage split of revenue by product for each segment?
-
+SELECT
+	pd.segment_name,
+	pd.product_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.segment_name),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.segment_name, pd.product_name
+ORDER BY pd.segment_name, percentage_of_revenue DESC;
 
 -- 7. What is the percentage split of revenue by segment for each category?
-
+SELECT
+	pd.category_name,
+	pd.segment_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.category_name),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.category_name, pd.segment_name
+ORDER BY pd.category_name, percentage_of_revenue DESC;
 
 -- 8. What is the percentage split of total revenue by category?
-
+SELECT
+	pd.category_name,
+	ROUND(
+		100.0 * SUM(s.qty * s.price)
+		/ SUM(SUM(s.qty * s.price)) OVER (),
+		2
+	) AS percentage_of_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
 
 -- 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
 
