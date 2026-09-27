@@ -209,7 +209,7 @@ WHERE plan_id = 2
     AND next_plan_date BETWEEN '2020-01-01' AND '2020-12-31';
 
 
--- C. Runner and Customer Experience
+-- C. Challenge Payment Question
 
 -- The Foodie-Fi team wants you to create a new payments table for the year 2020 that includes amounts paid by each customer in the subscriptions table with the following requirements:
 --  - monthly payments always occur on the same day of month as the original start_date of any monthly paid plan
