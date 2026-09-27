@@ -76,8 +76,8 @@ WITH transactions AS(
 )
 
 SELECT
-	ROUND((100.0 * members / total), 2) AS percentage_members,
-	ROUND((100.0 * non_members / total), 2) AS percentage_non_members
+	ROUND((100.0 * members / total), 2) AS members_percentage,
+	ROUND((100.0 * non_members / total), 2) AS non_members_percentage
 FROM transactions;
 
 -- 6. What is the average revenue for member transactions and non-member transactions?
@@ -182,12 +182,12 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.segment_name),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
 GROUP BY pd.segment_name, pd.product_name
-ORDER BY pd.segment_name, percentage_of_revenue DESC;
+ORDER BY pd.segment_name, revenue_percentage DESC;
 
 -- 7. What is the percentage split of revenue by segment for each category?
 SELECT
@@ -197,12 +197,12 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.category_name),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
 GROUP BY pd.category_name, pd.segment_name
-ORDER BY pd.category_name, percentage_of_revenue DESC;
+ORDER BY pd.category_name, revenue_percentage DESC;
 
 -- 8. What is the percentage split of total revenue by category?
 SELECT
@@ -211,7 +211,7 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
@@ -219,6 +219,39 @@ GROUP BY pd.category_name
 ORDER BY pd.category_name;
 
 -- 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
+WITH product_penetration AS (
+	SELECT
+		DISTINCT prod_id,
+		COUNT(DISTINCT txn_id) AS product_penetration
+	FROM sales
+	GROUP BY prod_id
+),
+total_transactions AS (
+	SELECT
+		COUNT(DISTINCT txn_id) AS total_transaction
+	FROM sales
+)
 
+SELECT
+	pd.product_name,
+	ROUND(100.0 * pp.product_penetration / tt.total_transaction, 2) AS penetration_percentage
+FROM product_penetration pp
+CROSS JOIN total_transactions tt
+INNER JOIN product_details pd
+	ON pp.prod_id = pd.product_id
+ORDER BY penetration_percentage DESC;
 
 -- 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+
+
+
+-- D. Reporting Challenge
+-- Write a single SQL script that combines all of the previous questions into a scheduled report that the Balanced Tree team can run at the beginning of each month to calculate the previous month’s values.
+-- Imagine that the Chief Financial Officer (which is also Danny) has asked for all of these questions at the end of every month.
+-- He first wants you to generate the data for January only - but then he also wants you to demonstrate that you can easily run the samne analysis for February without many changes (if at all).
+-- Feel free to split up your final outputs into as many tables as you need - but be sure to explicitly reference which table outputs relate to which question for full marks.
+
+
+-- E. Bonus Challenge
+-- Use a single SQL query to transform the product_hierarchy and product_prices datasets to the product_details table.
+-- Hint: you may want to consider using a recursive CTE to solve this problem!

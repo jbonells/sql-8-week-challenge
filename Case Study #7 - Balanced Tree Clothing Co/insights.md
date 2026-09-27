@@ -160,8 +160,8 @@ WITH transactions AS(
 )
 
 SELECT
-	ROUND((100.0 * members / total), 2) AS percentage_members,
-	ROUND((100.0 * non_members / total), 2) AS percentage_non_members
+	ROUND((100.0 * members / total), 2) AS members_percentage,
+	ROUND((100.0 * non_members / total), 2) AS non_members_percentage
 FROM transactions;
 ```
 
@@ -175,7 +175,7 @@ FROM transactions;
 - Wrap the calculations in **ROUND()** to format the results to two decimal places.
 
 #### Answer:
-| percentage_members | percentage_non_members |
+| members_percentage | non_members_percentage |
 | ------------------ | ---------------------- |
 | 60.20              | 39.80                  |
 
@@ -383,12 +383,12 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.segment_name),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
 GROUP BY pd.segment_name, pd.product_name
-ORDER BY pd.segment_name, percentage_of_revenue DESC;
+ORDER BY pd.segment_name, revenue_percentage DESC;
 ```
 
 #### Steps:
@@ -398,23 +398,23 @@ ORDER BY pd.segment_name, percentage_of_revenue DESC;
 - Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function partitioned by `segment_name` to calculate total segment revenue across all products within each segment.
 - Multiply grouped product revenue by 100.0 and divide by total segment revenue to compute the relative revenue contribution per product within its segment.
 - Wrap the calculation in **ROUND()** to format the result to two decimal places.
-- (Optional) Order the final dataset in ascending sequence by `segment_name` and descending sequence by `percentage_of_revenue` for structured presentation.
+- (Optional) Order the final dataset in ascending sequence by `segment_name` and descending sequence by `revenue_percentage` for structured presentation.
 
 #### Answer:
-| segment_name | product_name                     | percentage_of_revenue |
-| ------------ | -------------------------------- | --------------------- |
-| Jacket       | Grey Fashion Jacket - Womens     | 57.03                 |
-| Jacket       | Khaki Suit Jacket - Womens       | 23.51                 |
-| Jacket       | Indigo Rain Jacket - Womens      | 19.45                 |
-| Jeans        | Black Straight Jeans - Womens    | 58.15                 |
-| Jeans        | Navy Oversized Jeans - Womens    | 24.06                 |
-| Jeans        | Cream Relaxed Jeans - Womens     | 17.79                 |
-| Shirt        | Blue Polo Shirt - Mens           | 53.60                 |
-| Shirt        | White Tee Shirt - Mens           | 37.43                 |
-| Shirt        | Teal Button Up Shirt - Mens      | 8.98                  |
-| Socks        | Navy Solid Socks - Mens          | 44.33                 |
-| Socks        | Pink Fluro Polkadot Socks - Mens | 35.50                 |
-| Socks        | White Striped Socks - Mens       | 20.18                 |
+| segment_name | product_name                     | revenue_percentage |
+| ------------ | -------------------------------- | ------------------ |
+| Jacket       | Grey Fashion Jacket - Womens     | 57.03              |
+| Jacket       | Khaki Suit Jacket - Womens       | 23.51              |
+| Jacket       | Indigo Rain Jacket - Womens      | 19.45              |
+| Jeans        | Black Straight Jeans - Womens    | 58.15              |
+| Jeans        | Navy Oversized Jeans - Womens    | 24.06              |
+| Jeans        | Cream Relaxed Jeans - Womens     | 17.79              |
+| Shirt        | Blue Polo Shirt - Mens           | 53.60              |
+| Shirt        | White Tee Shirt - Mens           | 37.43              |
+| Shirt        | Teal Button Up Shirt - Mens      | 8.98               |
+| Socks        | Navy Solid Socks - Mens          | 44.33              |
+| Socks        | Pink Fluro Polkadot Socks - Mens | 35.50              |
+| Socks        | White Striped Socks - Mens       | 20.18              |
 
 ### 7. What is the percentage split of revenue by segment for each category?
 ```sql
@@ -425,12 +425,12 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (PARTITION BY pd.category_name),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
 GROUP BY pd.category_name, pd.segment_name
-ORDER BY pd.category_name, percentage_of_revenue DESC;
+ORDER BY pd.category_name, revenue_percentage DESC;
 ```
 
 #### Steps:
@@ -440,15 +440,15 @@ ORDER BY pd.category_name, percentage_of_revenue DESC;
 - Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function partitioned by `category_name` to calculate total category revenue across all segments within each category.
 - Multiply grouped segment revenue by 100.0 and divide by total category revenue to compute relative revenue contribution per segment within its category.
 - Wrap the calculation in **ROUND()** to format the result to two decimal places.
-- (Optional) Order the final dataset in ascending sequence by `category_name` and descending sequence by `percentage_of_revenue` for structured presentation.
+- (Optional) Order the final dataset in ascending sequence by `category_name` and descending sequence by `revenue_percentage` for structured presentation.
 
 #### Answer:
-| category_name | segment_name | percentage_of_revenue |
-| ------------- | ------------ | --------------------- |
-| Mens          | Shirt        | 56.87                 |
-| Mens          | Socks        | 43.13                 |
-| Womens        | Jacket       | 63.79                 |
-| Womens        | Jeans        | 36.21                 |
+| category_name | segment_name | revenue_percentage |
+| ------------- | ------------ | ------------------ |
+| Mens          | Shirt        | 56.87              |
+| Mens          | Socks        | 43.13              |
+| Womens        | Jacket       | 63.79              |
+| Womens        | Jeans        | 36.21              |
 
 ### 8. What is the percentage split of total revenue by category?
 ```sql
@@ -458,7 +458,7 @@ SELECT
 		100.0 * SUM(s.qty * s.price)
 		/ SUM(SUM(s.qty * s.price)) OVER (),
 		2
-	) AS percentage_of_revenue
+	) AS revenue_percentage
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
@@ -476,12 +476,65 @@ ORDER BY pd.category_name;
 - (Optional) Order the final dataset in ascending sequence by `category_name` for structured presentation.
 
 #### Answer:
-| category_name | percentage_of_revenue |
-| ------------- | --------------------- |
-| Mens          | 55.38                 |
-| Womens        | 44.62                 |
+| category_name | revenue_percentage |
+| ------------- | ------------------ |
+| Mens          | 55.38              |
+| Womens        | 44.62              |
 
 ### 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
+```sql
+WITH product_penetration AS (
+	SELECT
+		DISTINCT prod_id,
+		COUNT(DISTINCT txn_id) AS product_penetration
+	FROM sales
+	GROUP BY prod_id
+),
+total_transactions AS (
+	SELECT
+		COUNT(DISTINCT txn_id) AS total_transaction
+	FROM sales
+)
+
+SELECT
+	pd.product_name,
+	ROUND(100.0 * pp.product_penetration / tt.total_transaction, 2) AS penetration_percentage
+FROM product_penetration pp
+CROSS JOIN total_transactions tt
+INNER JOIN product_details pd
+	ON pp.prod_id = pd.product_id
+ORDER BY penetration_percentage DESC;
+```
+
+#### Steps:
+- Define a Common Table Expression (`product_penetration`) querying the `sales` table.
+- Group records by `prod_id` to aggregate transaction metrics per product.
+- Use **COUNT DISTINCT** to calculate total unique transactions per product.
+- Define a Common Table Expression (`total_transactions`) querying the `sales` table.
+- Use **COUNT DISTINCT** to calculate overall total unique transactions.
+- Use a **CROSS JOIN** with the `total_transactions` CTE to combine individual product transaction counts with total transaction volume.
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `product_details` table.
+- Multiply `product_penetration` by 100.0 and divide by `total_transaction` to compute the relative product penetration rate.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in descending sequence by `penetration_percentage` for structured presentation.
+
+#### Answer:
+| product_name                     | penetration_percentage |
+| -------------------------------- | ---------------------- |
+| Navy Solid Socks - Mens          | 51.24                  |
+| Grey Fashion Jacket - Womens     | 51.00                  |
+| Navy Oversized Jeans - Womens    | 50.96                  |
+| White Tee Shirt - Mens           | 50.72                  |
+| Blue Polo Shirt - Mens           | 50.72                  |
+| Pink Fluro Polkadot Socks - Mens | 50.32                  |
+| Indigo Rain Jacket - Womens      | 50.00                  |
+| Khaki Suit Jacket - Womens       | 49.88                  |
+| Black Straight Jeans - Womens    | 49.84                  |
+| Cream Relaxed Jeans - Womens     | 49.72                  |
+| White Striped Socks - Mens       | 49.72                  |
+| Teal Button Up Shirt - Mens      | 49.68                  |
+
+### 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
 ```sql
 
 ```
@@ -492,7 +545,28 @@ ORDER BY pd.category_name;
 #### Answer:
 
 
-### 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+
+## D. Reporting Challenge
+
+### Write a single SQL script that combines all of the previous questions into a scheduled report that the Balanced Tree team can run at the beginning of each month to calculate the previous month’s values.
+- Imagine that the Chief Financial Officer (which is also Danny) has asked for all of these questions at the end of every month.
+- He first wants you to generate the data for January only - but then he also wants you to demonstrate that you can easily run the samne analysis for February without many changes (if at all).
+- Feel free to split up your final outputs into as many tables as you need - but be sure to explicitly reference which table outputs relate to which question for full marks.
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+
+## E. Bonus Challenge
+
+### Use a single SQL query to transform the product_hierarchy and product_prices datasets to the product_details table.
+- Hint: you may want to consider using a recursive CTE to solve this problem!
 ```sql
 
 ```
