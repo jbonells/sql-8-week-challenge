@@ -261,7 +261,7 @@ ORDER BY year, demographic;
 #### Steps:
 - Group records by `year` and `demographic` to aggregate sales for each year and demographic combination.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each group.
-- Apply a **SUM() OVER()** window function partitioned by `calendar_year` to calculate overall annual sales across all demographics.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function partitioned by `calendar_year` to calculate overall annual sales across all demographics.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by overall annual sales.
 - Wrap the calculation in **ROUND()** to format the final percentage metrics to two decimal places.
 - Order the final dataset in ascending sequence by `year` and `demographic` for structured presentation.
@@ -311,14 +311,14 @@ ORDER BY dimension, retail_sales DESC;
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Add literal string labels ('age_band' as dimension) and group records by `age_band` to aggregate sales for each age band.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each age band.
-- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across age bands.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function to calculate overall total retail sales across age bands.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
 - Wrap the calculation in **ROUND()** to format the final percentage metrics to two decimal places.
 - Apply **UNION ALL** to combine the age band results with the demographic results.
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Add literal string labels ('demographic' as dimension) and group records by `demographic` to aggregate sales for each demographic.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each demographic.
-- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across demographics.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function to calculate overall total retail sales across demographics.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
 - Wrap the calculations in **ROUND()** to format the output values to two decimal places.
 - (Optional) Order the final dataset ascending by `dimension` and descending by `retail_sales` for structured presentation.
@@ -354,7 +354,7 @@ ORDER BY retail_sales DESC;
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
 - Group records by `age_band` and `demographic` to aggregate sales for each age band and demographic combination.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each group.
-- Apply a **SUM(SUM()) OVER ()** window function to calculate overall total retail sales across all groups.
+- Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function to calculate overall total retail sales across all groups.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
 - Wrap the calculations in **ROUND()** to format the output values to two decimal places.
 - (Optional) Order the final dataset in descending sequence by `retail_sales` for structured presentation.
