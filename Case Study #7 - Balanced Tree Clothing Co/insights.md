@@ -170,8 +170,8 @@ FROM transactions;
 - Use **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`member = 't'`) to tally unique member transactions.
 - Use **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`member = 'f'`) to tally unique non-member transactions.
 - Use **COUNT DISTINCT** to calculate total unique transactions.
-- Multiply `members` by 100.0 and divide by `total`to compute the member transaction share.
-- Multiply `non_members` by 100.0 and divide by `total`to compute the non-member transaction share.
+- Multiply `members` by 100.0 and divide by `total` to compute the member transaction share.
+- Multiply `non_members` by 100.0 and divide by `total` to compute the non-member transaction share.
 - Wrap the calculations in **ROUND()** to format the results to two decimal places.
 
 #### Answer:
@@ -580,13 +580,13 @@ LIMIT 1;
 #### Steps:
 - Define a Common Table Expression (`product_transactions`) querying the `sales` table.
 - Group records by `txn_id` and `prod_id` to isolate unique product entries per transaction.
-- Define a Common Table Expression (`total_transactions`) querying the `product_transactions` CTE (`pt1`).
+- Define a Common Table Expression (`all_combinations`) querying the `product_transactions` CTE (`pt1`).
 - Use an **INNER JOIN** with `product_transactions` (`pt2`) on `pt1.txn_id = pt2.txn_id AND pt1.prod_id < pt2.prod_id` to form unique pairs (p1, p2).
 - Use an **INNER JOIN** with `product_transactions` (`pt3`) on `pt2.txn_id = pt3.txn_id AND pt2.prod_id < pt3.prod_id` to form unique triplets (p1, p2, p3).
 - Query the `all_combinations` CTE.
 - Use an **INNER JOIN** with `product_details` (`pd1`) on `ac.p1 = pd1.product_id` to retrieve the name of the first product.
 - Use an **INNER JOIN** with `product_details` (`pd2`) on `ac.p2 = pd2.product_id` to retrieve the name of the second product.
-- Use an **INNER JOIN** with `product_details` (`pd3`) on `ac.p3 = pd2.product_id` to retrieve the name of the third product.
+- Use an **INNER JOIN** with `product_details` (`pd3`) on `ac.p3 = pd3.product_id` to retrieve the name of the third product.
 - Use **COUNT DISTINCT** to calculate the total unique transaction volume for each three-product combination.
 - Order the final dataset in descending sequence by `combinations` to rank product combinations by frequency.
 - Use **LIMIT 1** to isolate the most frequently co-purchased product triplet.
@@ -604,14 +604,394 @@ LIMIT 1;
 - He first wants you to generate the data for January only - but then he also wants you to demonstrate that you can easily run the samne analysis for February without many changes (if at all).
 - Feel free to split up your final outputs into as many tables as you need - but be sure to explicitly reference which table outputs relate to which question for full marks.
 ```sql
+-- 1. What are the top 3 products by total revenue before discount?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
 
+SELECT
+	pd.product_name,
+	SUM(sm.qty * sm.price) AS total_revenue
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.product_name
+ORDER BY total_revenue DESC
+LIMIT 3;
+
+-- 2. What is the total quantity, revenue and discount for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.segment_name,
+    SUM(sm.qty) AS total_quantity,
+    SUM(sm.qty * sm.price) AS total_revenue,
+    ROUND(SUM(sm.qty * sm.price * sm.discount / 100.0), 2) AS total_discount
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.segment_name
+ORDER BY pd.segment_name;
+
+-- 3. What is the top selling product for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.segment_name ORDER BY SUM(sm.qty) DESC) AS ranking,
+		pd.segment_name,
+		pd.product_name,
+		SUM(sm.qty) AS total_quantity    
+	FROM sales_monthly sm
+	INNER JOIN product_details pd
+		ON sm.prod_id = pd.product_id
+	GROUP BY pd.segment_name, pd.product_name
+)
+
+SELECT
+	segment_name,
+	product_name,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY segment_name;
+
+-- 4. What is the total quantity, revenue and discount for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+    SUM(sm.qty) AS total_quantity,
+    SUM(sm.qty * sm.price) AS total_revenue,
+    ROUND(SUM(sm.qty * sm.price * sm.discount / 100.0), 2) AS total_discount
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
+
+-- 5. What is the top selling product for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.category_name ORDER BY SUM(sm.qty) DESC) AS ranking,
+		pd.category_name,
+		pd.product_name,
+		SUM(sm.qty) AS total_quantity    
+	FROM sales_monthly sm
+	INNER JOIN product_details pd
+		ON sm.prod_id = pd.product_id
+	GROUP BY pd.category_name, pd.product_name
+)
+
+SELECT
+	category_name,
+	product_name,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY category_name;
+
+-- 6. What is the percentage split of revenue by product for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.segment_name,
+	pd.product_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (PARTITION BY pd.segment_name),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.segment_name, pd.product_name
+ORDER BY pd.segment_name, revenue_percentage DESC;
+
+-- 7. What is the percentage split of revenue by segment for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+	pd.segment_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (PARTITION BY pd.category_name),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name, pd.segment_name
+ORDER BY pd.category_name, revenue_percentage DESC;
+
+-- 8. What is the percentage split of total revenue by category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
+
+-- 9. What is the total transaction “penetration” for each product?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+product_penetration AS (
+	SELECT
+		DISTINCT prod_id,
+		COUNT(DISTINCT txn_id) AS product_penetration
+	FROM sales_monthly
+	GROUP BY prod_id
+),
+total_transactions AS (
+	SELECT
+		COUNT(DISTINCT txn_id) AS total_transaction
+	FROM sales_monthly
+)
+
+SELECT
+	pd.product_name,
+	ROUND(100.0 * pp.product_penetration / tt.total_transaction, 2) AS penetration_percentage
+FROM product_penetration pp
+CROSS JOIN total_transactions tt
+INNER JOIN product_details pd
+	ON pp.prod_id = pd.product_id
+ORDER BY penetration_percentage DESC;
+
+-- 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+product_transactions AS (
+	SELECT
+		txn_id,
+		prod_id
+	FROM sales_monthly
+	GROUP BY txn_id, prod_id
+),
+all_combinations AS (
+	SELECT
+		pt1.txn_id,
+		pt1.prod_id AS p1,
+		pt2.prod_id AS p2,
+		pt3.prod_id AS p3
+	FROM product_transactions pt1
+	INNER JOIN product_transactions pt2
+		ON pt1.txn_id = pt2.txn_id
+		AND pt1.prod_id < pt2.prod_id
+	INNER JOIN product_transactions pt3
+		ON pt2.txn_id = pt3.txn_id
+		AND pt2.prod_id < pt3.prod_id
+)
+
+SELECT
+    pd1.product_name AS product_1,
+    pd2.product_name AS product_2,
+    pd3.product_name AS product_3,
+    COUNT(DISTINCT ac.txn_id) AS combinations
+FROM all_combinations ac
+INNER JOIN product_details pd1
+	ON ac.p1 = pd1.product_id
+INNER JOIN product_details pd2
+	ON ac.p2 = pd2.product_id
+INNER JOIN product_details pd3
+	ON ac.p3 = pd3.product_id
+GROUP BY pd1.product_name, pd2.product_name, pd3.product_name
+ORDER BY combinations DESC
+LIMIT 1;
 ```
 
 #### Steps:
-- 
+- CTE 1: Report Target Month Definition
+	- Define a Common Table Expression (`report_month`) establishing the target month anchor date, initially set to '2021-01-01'.
+	- Assign the alias `month_start` to the resulting column for clear filtering in later report queries.
+- CTE 2: Monthly Sales Filtering
+	- Define a Common Table Expression (`sales_monthly`) querying the `sales` table.
+	- Use a **CROSS JOIN** with the `report_month` CTE to make `month_start` available for filtering.
+	- Apply a **WHERE** clause (`s.start_txn_time >= rm.month_start AND s.start_txn_time < rm.month_start + INTERVAL '1 month'`) to isolate transactions occurring strictly within the dynamic one-month reporting window.
+- Downstream Query Adaptation
+	- Swap the source table reference from `sales (s)` to `sales_monthly (sm)`.
+	- Update all direct column references from `s.` to `sm.` (e.g.: `sm.qty`, `sm.price`, `sm.discount`, `sm.prod_id`).
 
 #### Answer:
+| product_name                 | total_revenue |
+| ---------------------------- | ------------- |
+| Grey Fashion Jacket - Womens | 70,200        |
+| Blue Polo Shirt - Mens       | 69,198        |
+| White Tee Shirt - Mens       | 50,240        |
 
+| segment_name | total_quantity | total_revenue | total_discount |
+| ------------ | -------------- | ------------- | -------------- |
+| Jacket       | 3,750          | 121,650       | 14,871.38      |
+| Jeans        | 3,777          | 68,777        | 8,482.68       |
+| Shirt        | 3,690          | 131,638       | 16,228.38      |
+| Socks        | 3,571          | 98,607        | 12,006.66      |
+
+| segment_name | product_name                 | total_quantity |
+| ------------ | ---------------------------- | -------------- |
+| Jacket       | Grey Fashion Jacket - Womens | 1300           |
+| Jeans        | Cream Relaxed Jeans - Womens | 1282           |
+| Shirt        | White Tee Shirt - Mens       | 1256           |
+| Socks        | Navy Solid Socks - Mens      | 1264           |
+
+| category_name | total_quantity | total_revenue | total_discount |
+| ------------- | -------------- | ------------- | -------------- |
+| Mens          | 7,261          | 230,245       | 28,235.04      |
+| Womens        | 7,527          | 190,427       | 23,354.06      |
+
+| category_name | product_name                 | total_quantity |
+| ------------- | ---------------------------- | -------------- |
+| Mens          | Navy Solid Socks - Mens      | 1264           |
+| Womens        | Grey Fashion Jacket - Womens | 1300           |
+
+| segment_name | product_name                     | revenue_percentage |
+| ------------ | -------------------------------- | ------------------ |
+| Jacket       | Grey Fashion Jacket - Womens     | 57.71              |
+| Jacket       | Khaki Suit Jacket - Womens       | 23.16              |
+| Jacket       | Indigo Rain Jacket - Womens      | 19.13              |
+| Jeans        | Black Straight Jeans - Womens    | 57.60              |
+| Jeans        | Navy Oversized Jeans - Womens    | 23.76              |
+| Jeans        | Cream Relaxed Jeans - Womens     | 18.64              |
+| Shirt        | Blue Polo Shirt - Mens           | 52.57              |
+| Shirt        | White Tee Shirt - Mens           | 38.17              |
+| Shirt        | Teal Button Up Shirt - Mens      | 9.27               |
+| Socks        | Navy Solid Socks - Mens          | 46.15              |
+| Socks        | Pink Fluro Polkadot Socks - Mens | 34.03              |
+| Socks        | White Striped Socks - Mens       | 19.83              |
+
+| category_name | segment_name | revenue_percentage |
+| ------------- | ------------ | ------------------ |
+| Mens          | Shirt        | 57.17              |
+| Mens          | Socks        | 42.83              |
+| Womens        | Jacket       | 63.88              |
+| Womens        | Jeans        | 36.12              |
+
+| category_name | revenue_percentage |
+| ------------- | ------------------ |
+| Mens          | 54.73              |
+| Womens        | 45.27              |
+
+| product_name                     | penetration_percentage |
+| -------------------------------- | ---------------------- |
+| Cream Relaxed Jeans - Womens     | 52.17                  |
+| Grey Fashion Jacket - Womens     | 52.05                  |
+| Navy Oversized Jeans - Womens    | 51.09                  |
+| Navy Solid Socks - Mens          | 50.72                  |
+| White Tee Shirt - Mens           | 50.24                  |
+| Blue Polo Shirt - Mens           | 49.88                  |
+| Teal Button Up Shirt - Mens      | 49.64                  |
+| Black Straight Jeans - Womens    | 49.28                  |
+| Indigo Rain Jacket - Womens      | 49.15                  |
+| Khaki Suit Jacket - Womens       | 48.55                  |
+| White Striped Socks - Mens       | 48.19                  |
+| Pink Fluro Polkadot Socks - Mens | 47.83                  |
+
+| product_1                    | product_2                     | product_3               | combinations |
+| ---------------------------- | ----------------------------- | ----------------------- | ------------ |
+| Grey Fashion Jacket - Womens | Black Straight Jeans - Womens | Navy Solid Socks - Mens | 125          |
 
 
 ## E. Bonus Challenge

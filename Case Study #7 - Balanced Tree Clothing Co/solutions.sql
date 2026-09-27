@@ -287,6 +287,304 @@ LIMIT 1;
 -- He first wants you to generate the data for January only - but then he also wants you to demonstrate that you can easily run the samne analysis for February without many changes (if at all).
 -- Feel free to split up your final outputs into as many tables as you need - but be sure to explicitly reference which table outputs relate to which question for full marks.
 
+-- 1. What are the top 3 products by total revenue before discount?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.product_name,
+	SUM(sm.qty * sm.price) AS total_revenue
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.product_name
+ORDER BY total_revenue DESC
+LIMIT 3;
+
+-- 2. What is the total quantity, revenue and discount for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.segment_name,
+    SUM(sm.qty) AS total_quantity,
+    SUM(sm.qty * sm.price) AS total_revenue,
+    ROUND(SUM(sm.qty * sm.price * sm.discount / 100.0), 2) AS total_discount
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.segment_name
+ORDER BY pd.segment_name;
+
+-- 3. What is the top selling product for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.segment_name ORDER BY SUM(sm.qty) DESC) AS ranking,
+		pd.segment_name,
+		pd.product_name,
+		SUM(sm.qty) AS total_quantity    
+	FROM sales_monthly sm
+	INNER JOIN product_details pd
+		ON sm.prod_id = pd.product_id
+	GROUP BY pd.segment_name, pd.product_name
+)
+
+SELECT
+	segment_name,
+	product_name,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY segment_name;
+
+-- 4. What is the total quantity, revenue and discount for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+    SUM(sm.qty) AS total_quantity,
+    SUM(sm.qty * sm.price) AS total_revenue,
+    ROUND(SUM(sm.qty * sm.price * sm.discount / 100.0), 2) AS total_discount
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
+
+-- 5. What is the top selling product for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.category_name ORDER BY SUM(sm.qty) DESC) AS ranking,
+		pd.category_name,
+		pd.product_name,
+		SUM(sm.qty) AS total_quantity    
+	FROM sales_monthly sm
+	INNER JOIN product_details pd
+		ON sm.prod_id = pd.product_id
+	GROUP BY pd.category_name, pd.product_name
+)
+
+SELECT
+	category_name,
+	product_name,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY category_name;
+
+-- 6. What is the percentage split of revenue by product for each segment?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.segment_name,
+	pd.product_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (PARTITION BY pd.segment_name),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.segment_name, pd.product_name
+ORDER BY pd.segment_name, revenue_percentage DESC;
+
+-- 7. What is the percentage split of revenue by segment for each category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+	pd.segment_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (PARTITION BY pd.category_name),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name, pd.segment_name
+ORDER BY pd.category_name, revenue_percentage DESC;
+
+-- 8. What is the percentage split of total revenue by category?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+)
+
+SELECT
+	pd.category_name,
+	ROUND(
+		100.0 * SUM(sm.qty * sm.price)
+		/ SUM(SUM(sm.qty * sm.price)) OVER (),
+		2
+	) AS revenue_percentage
+FROM sales_monthly sm
+INNER JOIN product_details pd
+	ON sm.prod_id = pd.product_id
+GROUP BY pd.category_name
+ORDER BY pd.category_name;
+
+-- 9. What is the total transaction “penetration” for each product?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+product_penetration AS (
+	SELECT
+		DISTINCT prod_id,
+		COUNT(DISTINCT txn_id) AS product_penetration
+	FROM sales_monthly
+	GROUP BY prod_id
+),
+total_transactions AS (
+	SELECT
+		COUNT(DISTINCT txn_id) AS total_transaction
+	FROM sales_monthly
+)
+
+SELECT
+	pd.product_name,
+	ROUND(100.0 * pp.product_penetration / tt.total_transaction, 2) AS penetration_percentage
+FROM product_penetration pp
+CROSS JOIN total_transactions tt
+INNER JOIN product_details pd
+	ON pp.prod_id = pd.product_id
+ORDER BY penetration_percentage DESC;
+
+-- 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+WITH report_month AS (
+    SELECT DATE '2021-01-01' AS month_start
+),
+sales_monthly AS (
+	SELECT
+		s.*
+	FROM sales s
+	CROSS JOIN report_month rm
+	WHERE s.start_txn_time >= rm.month_start
+		AND s.start_txn_time < rm.month_start + INTERVAL '1 month'
+),
+product_transactions AS (
+	SELECT
+		txn_id,
+		prod_id
+	FROM sales_monthly
+	GROUP BY txn_id, prod_id
+),
+all_combinations AS (
+	SELECT
+		pt1.txn_id,
+		pt1.prod_id AS p1,
+		pt2.prod_id AS p2,
+		pt3.prod_id AS p3
+	FROM product_transactions pt1
+	INNER JOIN product_transactions pt2
+		ON pt1.txn_id = pt2.txn_id
+		AND pt1.prod_id < pt2.prod_id
+	INNER JOIN product_transactions pt3
+		ON pt2.txn_id = pt3.txn_id
+		AND pt2.prod_id < pt3.prod_id
+)
+
+SELECT
+    pd1.product_name AS product_1,
+    pd2.product_name AS product_2,
+    pd3.product_name AS product_3,
+    COUNT(DISTINCT ac.txn_id) AS combinations
+FROM all_combinations ac
+INNER JOIN product_details pd1
+	ON ac.p1 = pd1.product_id
+INNER JOIN product_details pd2
+	ON ac.p2 = pd2.product_id
+INNER JOIN product_details pd3
+	ON ac.p3 = pd3.product_id
+GROUP BY pd1.product_name, pd2.product_name, pd3.product_name
+ORDER BY combinations DESC
+LIMIT 1;
 
 -- E. Bonus Challenge
 -- Use a single SQL query to transform the product_hierarchy and product_prices datasets to the product_details table.
