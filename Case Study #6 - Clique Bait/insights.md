@@ -501,8 +501,7 @@ FROM product_funnel;
 | ---------------------- |
 | 60.95                  |
 
-- The average view-to-cart-add conversion rate is 60.95% (mean of each product's individual rate) and 60.93% (pooled rate: total cart adds ÷ total views).
-- The two are nearly identical, indicating view traffic is fairly evenly distributed across products — no single product disproportionately skews the average.
+- I have used the mean of each product's individual rate instead of a pooled rate (total cart adds / total views).
 
 ### 5. What is the average conversion rate from cart add to purchase?
 ```sql
@@ -521,6 +520,8 @@ FROM product_funnel;
 | avg_cart_to_purchase_ratio |
 | -------------------------- |
 | 75.93                      |
+
+- I have used the mean of each product's individual rate instead of a pooled rate (total purchases / total cart_adds).
 
 
 ## C. Campaigns Analysis
