@@ -110,15 +110,15 @@ LIMIT 3;
 
 -- 2. What is the total quantity, revenue and discount for each segment?
 SELECT
-	pd.segment_id,
+	pd.segment_name,
     SUM(s.qty) AS total_quantity,
     SUM(s.qty * s.price) AS total_revenue,
     ROUND(SUM(s.qty * s.price * s.discount / 100.0), 2) AS total_discount
 FROM sales s
 INNER JOIN product_details pd
 	ON s.prod_id = pd.product_id
-GROUP BY pd.segment_id
-ORDER BY pd.segment_id;
+GROUP BY pd.segment_name
+ORDER BY pd.segment_name;
 
 -- 3. What is the top selling product for each segment?
 WITH top_selling AS (

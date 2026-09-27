@@ -40,7 +40,7 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **SUM()** aggregate function to multiply `qty`, `price`, and `discount`, divide by 100.0 to calculate the monetary discount amount.
+- Apply the **SUM()** aggregate function and divide by 100.0 to calculate the monetary discount amount.
 - Wrap the calculation in **ROUND()** to format the result to two decimal places.
 
 #### Answer:
@@ -114,7 +114,7 @@ FROM revenue;
 #### Steps:
 - Define a Common Table Expression (`revenue`) querying the `sales` table.
 - Group records by `txn_id` to aggregate revenue per transaction.
-- Apply the **SUM()** aggregate function to the product of `qty` and `price` to calculate total sales revenue per transaction.
+- Apply the **SUM()** aggregate function to calculate total sales revenue per transaction.
 - Use **PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...)** to calculate the 25th percentile (median), 50th percentile (median), and 75th percentile revenue thresholds.
 
 #### Answer:
@@ -140,8 +140,8 @@ FROM discount
 #### Steps:
 - Define a Common Table Expression (`discount`) querying the `sales` table.
 - Group records by `txn_id` to aggregate discount per transaction.
-- Apply the **SUM()** aggregate function to multiply `qty`, `price`, and `discount`, divide by 100.0 to compute the total monetary discount amount per transaction.
-- Apply the **SUM()** aggregate function to compute the overall average transaction discount.
+- Apply the **SUM()** aggregate function and divide by 100.0 to compute the total monetary discount amount per transaction.
+- Apply the **AVG()** aggregate function to compute the overall average transaction discount.
 - Wrap the calculation in **ROUND()** to format the average to two decimal places.
 
 #### Answer:
@@ -234,31 +234,79 @@ LIMIT 3;
 #### Answer:
 | product_name                 | total_revenue |
 | ---------------------------- | ------------- |
-| Blue Polo Shirt - Mens       | 217683        |
-| Grey Fashion Jacket - Womens | 209304        |
-| White Tee Shirt - Mens       | 152000        |
+| Blue Polo Shirt - Mens       | 217,683       |
+| Grey Fashion Jacket - Womens | 209,304       |
+| White Tee Shirt - Mens       | 152,000       |
 
 ### 2. What is the total quantity, revenue and discount for each segment?
 ```sql
-
+SELECT
+	pd.segment_name,
+    SUM(s.qty) AS total_quantity,
+    SUM(s.qty * s.price) AS total_revenue,
+    ROUND(SUM(s.qty * s.price * s.discount / 100.0), 2) AS total_discount
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.segment_name
+ORDER BY pd.segment_name;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `sales` and `product_details` tables.
+- Group records by `segment_name` to aggregate sales per segment.
+- Apply the **SUM()** aggregate function to calculate total units sold.
+- Apply the **SUM()** aggregate function to calculate gross sales revenue.
+- Apply the **SUM()** aggregate function and divide by 100.0 to calculate the overall monetary discount amount.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `segment_name` for structured presentation.
 
 #### Answer:
-
+| segment_name | total_quantity | total_revenue | total_discount |
+| ------------ | -------------- | ------------- | -------------- |
+| Jacket       | 11,385         | 366,983       | 44,277.46      |
+| Jeans        | 11,349         | 208,350       | 25,343.97      |
+| Shirt        | 11,265         | 406,143       | 49,594.27      |
+| Socks        | 11,217         | 307,977       | 37,013.44      |
 
 ### 3. What is the top selling product for each segment?
 ```sql
+WITH top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.segment_name ORDER BY SUM(s.qty) DESC) AS ranking,
+		pd.segment_name AS segment,
+		pd.product_name AS product,
+		SUM(s.qty) AS total_quantity    
+	FROM sales s
+	INNER JOIN product_details pd
+		ON s.prod_id = pd.product_id
+	GROUP BY pd.segment_name, pd.product_name
+)
 
+SELECT
+	segment,
+	product,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY segment;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`top_selling`) joining the `sales` and `product_details` tables on `s.prod_id = pd.product_id`.
+- Group the joined records by `segment_name` and `product_name` to aggregate sales per product within each segment.
+- Apply the **SUM()** aggregate function to calculate the total units sold per product.
+- Apply the **ROW_NUMBER() OVER()** window function partitioned by `segment_name` and ordered by total quantity descending to rank products sold within each segment.
+- Apply a **WHERE** clause (`ranking = 1`) to filter for the top-selling product in each segment.
+- (Optional) Order the final dataset in ascending sequence by `segment` for structured presentation.
 
 #### Answer:
-
+| segment_name | product                       | total_quantity |
+| ------------ | ----------------------------- | -------------- |
+| Jacket       | Grey Fashion Jacket - Womens  | 3876           |
+| Jeans        | Navy Oversized Jeans - Womens | 3856           |
+| Shirt        | Blue Polo Shirt - Mens        | 3819           |
+| Socks        | Navy Solid Socks - Mens       | 3792           |
 
 ### 4. What is the total quantity, revenue and discount for each category?
 ```sql
