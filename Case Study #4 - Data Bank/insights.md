@@ -261,7 +261,7 @@ ORDER BY fc.customer_id, fc.month;
 - Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month.
 - Wrap `net_change` in **COALESCE()** to replace `NULL` values with 0 for inactive months.
-- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
+- Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `month_number` to compute each customer's running balance over time.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` and `month` for structured presentation.
 
 #### Answer:
@@ -346,9 +346,9 @@ FROM customer_change;
 - Define a Common Table Expression (`closing_balances`) querying the `full_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `month_number` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
 - Wrap `net_change` in **COALESCE()** to replace `NULL` values with 0 for inactive months.
-- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's running balance over time.
+- Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `month_number` to compute each customer's running balance over time.
 - Define a Common Table Expression (`balance_comparison`) querying the `closing_balances` CTE using **SELECT DISTINCT** to extract one record per customer.
-- Apply **FIRST_VALUE()** and **LAST_VALUE()** window functions partitioned by `customer_id` and ordered by `month` to capture each customer's initial and final balance respectively.
+- Apply **FIRST_VALUE() OVER()** and **LAST_VALUE() OVER()** window functions partitioned by `customer_id` and ordered by `month` to capture each customer's initial and final balance respectively.
 - Define a Common Table Expression (`customer_change`) querying the `balance_comparison` CTE to calculate each customer's percentage growth.
 - Apply conditional aggregation using **COUNT()** with a ** FILTER (WHERE ...)** clause (`pct_change > 5`) multiplied by 100.0 to calculate the proportion of qualifying customers.
 - Use **COUNT()** to divide by the total customer count.
@@ -434,7 +434,7 @@ running_balance AS (
 	- Define a Common Table Expression (`closing_balances`) querying the `full_calendar` CTE.
 	- Use a **LEFT JOIN** on `customer_id` and `month` between `full_calendar` and `monthly_activity` CTEs to ensure inactive months with zero transactions are preserved.
 	- Apply **COALESCE()** to replace `NULL` values with 0 for inactive customer-months.
-	- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `month_number` to compute each customer's monthly closing balance.
+	- Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `month_number` to compute each customer's monthly closing balance.
 - CTE 4: Transaction-Level Running Balance
 	- Define a Common Table Expression (`running_balances`) querying the `customer_transactions` table.
 	- Apply a **CASE** statement inside a **SUM() OVER ()** window function partitioned by `customer_id` and order by `txn_date` to compute a continuous transaction-by-transaction running balance.
@@ -629,7 +629,7 @@ ORDER BY month;
 - Define a Common Table Expression (`daily_balance`) querying the `daily_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `date` between `daily_calendar` and `daily_activity` CTEs to ensure inactive days with zero transactions are preserved.
 - Apply **COALESCE()** to replace `NULL` values with 0 for inactive days.
-- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `date` to compute each customer's daily running balance.
+- Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `date` to compute each customer's daily running balance.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month in the main query.
 - Apply a **GREATEST()** constraint to floor negative balances at 0, ensuring overdrawn accounts do not subtract from the total requirement.
 - Group by `month` and use **SUM()** to aggregate monthly non-compounding interest data across all customers.
@@ -720,7 +720,7 @@ ORDER BY month;
 - Define a Common Table Expression (`daily_balance`) querying the `daily_calendar` CTE.
 - Use a **LEFT JOIN** on `customer_id` and `date` between `daily_calendar` and `daily_activity` CTEs to ensure inactive days with zero transactions are preserved.
 - Apply **COALESCE()** to replace `NULL` values with 0 for inactive days.
-- Use the window function **SUM() OVER ()** with partition by `customer_id` and order by `date` to compute each customer's daily running balance.
+- Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `date` to compute each customer's daily running balance.
 - Define a Common Table Expression (`daily_interest`) to iteratively compute compounding daily interest and dynamic daily balances.
 - Establish the anchor member by filtering daily_balance for the minimum start date, seeding the starting balance rounded to 2 decimal places and setting initial `interest_earned` to 0.
 - Construct the recursive member using **UNION ALL**, joining `daily_calendar`, `daily_activity`, and the prior day's recursive results from `daily_interest` on `date = date + INTERVAL '1 day'` and `customer_id`.
