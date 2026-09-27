@@ -71,7 +71,7 @@ WHERE rank = 1;
 
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) that joins the `sales` and `menu` tables on `product_id`.
-- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` ascending to chronologically sequence each customer's purchases.
+- Apply the **DENSE_RANK() OVER()** window function partitioned by `customer_id` and ordered by `order_date` ascending to chronologically sequence each customer's purchases.
 - Query the CTE to isolate the absolute earliest purchase records by filtering for `rank = 1`.
 - Apply **SELECT DISTINCT** to present a clean, unique list of the products purchased on each customer's first day, accurately capturing any multi-item ties.
 
@@ -138,7 +138,7 @@ WHERE rank = 1;
 #### Steps:
 - Define a Common Table Expression (`ranked_items`) that joins the `sales` and `menu` tables on `product_id`.
 - Group the joined records by `customer_id` and `product_name` to calculate the purchase frequency (`order_count`) for each item per customer.
-- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered in descending sequence by count of `product_id` to rank each customer's items from most to least purchased.
+- Apply the **DENSE_RANK() OVER()** window function partitioned by `customer_id` and ordered in descending sequence by count of `product_id` to rank each customer's items from most to least purchased.
 - Apply a **WHERE** clause (`rank = 1`) to isolate and return the top-performing items for each customer.
 
 #### Answer:
@@ -180,7 +180,7 @@ WHERE rank = 1;
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) joining the `sales` and `menu` tables on `product_id` and the `members` table on `customer_id`.
 - Apply a **WHERE** clause (`s.order_date >= mem.join_date`) to isolate transactions occurring on or after each customer's membership join date.
-- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` ascending to rank post-membership purchases chronologically in ascending order.
+- Apply the **DENSE_RANK() OVER()** window function partitioned by `customer_id` and ordered by `order_date` ascending to rank post-membership purchases chronologically in ascending order.
 - Apply a **WHERE** clause (`rank = 1`) to isolate the absolute earliest item(s) purchased after joining as a member.
 - Use **SELECT DISTINCT** to deduplicate product names per customer in the event multiple identical items were purchased during their first post-membership transaction.
 
@@ -220,7 +220,7 @@ WHERE rank = 1;
 #### Steps:
 - Define a Common Table Expression (`ranked_sales`) joining the `sales` and `menu` tables on `product_id` and the `members` table on `customer_id`.
 - Apply a **WHERE** clause (`s.order_date < mem.join_date`) to include transactions occurring before the join date.
-- Apply the **DENSE_RANK()** window function partitioned by `customer_id` and ordered by `order_date` to rank pre-membership purchases in reverse chronological order.
+- Apply the **DENSE_RANK() OVER()** window function partitioned by `customer_id` and ordered by `order_date` to rank pre-membership purchases in reverse chronological order.
 - Apply a **WHERE** clause (`rank = 1`) to isolate the last item(s) purchased by each customer just before becoming a member.
 
 #### Answer:
@@ -423,7 +423,7 @@ ORDER BY customer_id, order_date, product_name;
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
 - Use a **LEFT JOIN** on `customer_id` to connect the `sales` and `members` tables.
 - Apply a **CASE** statement within the CTE to evaluate membership status per order.
-- Apply conditional logic combining a **CASE** statement with the window function **RANK() OVER()** to chronologically rank post-membership purchases per member while assigning `NULL` to non-member orders.
+- Apply conditional logic combining a **CASE** statement with the **RANK() OVER()** window function to chronologically rank post-membership purchases per member while assigning `NULL` to non-member orders.
 - (Optional) Order the final dataset in ascending sequence by `customer_id`, `order_date`, and `product_name` for structured presentation.
 
 #### Answer:
