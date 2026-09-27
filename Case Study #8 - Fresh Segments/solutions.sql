@@ -9,7 +9,12 @@ ALTER TABLE fresh_segments.interest_metrics
 ALTER COLUMN month_year TYPE DATE USING TO_DATE(month_year, 'MM-YYYY');
 
 -- 2. What is count of records in the fresh_segments.interest_metrics for each month_year value sorted in chronological order (earliest to latest) with the null values appearing first?
-
+SELECT
+	month_year,
+	COUNT(*)
+FROM interest_metrics
+GROUP BY month_year
+ORDER BY month_year NULLS FIRST;
 
 -- 3. What do you think we should do with these null values in the fresh_segments.interest_metrics
 
