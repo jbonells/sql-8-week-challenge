@@ -115,7 +115,7 @@ FROM revenue;
 - Define a Common Table Expression (`revenue`) querying the `sales` table.
 - Group records by `txn_id` to aggregate revenue per transaction.
 - Apply the **SUM()** aggregate function to calculate total sales revenue per transaction.
-- Use **PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...)** to calculate the 25th percentile (median), 50th percentile (median), and 75th percentile revenue thresholds.
+- Use **PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...)** to calculate the 25th percentile, 50th percentile (median), and 75th percentile revenue thresholds.
 
 #### Answer:
 | percentile_25 | percentile_50 | percentile_75 |
@@ -415,6 +415,8 @@ ORDER BY pd.segment_name, revenue_percentage DESC;
 | Socks        | Navy Solid Socks - Mens          | 44.33              |
 | Socks        | Pink Fluro Polkadot Socks - Mens | 35.50              |
 | Socks        | White Striped Socks - Mens       | 20.18              |
+
+- Individual percentages are rounded to 2 decimal places; totals per segment deviate slightly from 100% (±0.01%) due to independent rounding of each row.
 
 ### 7. What is the percentage split of revenue by segment for each category?
 ```sql
