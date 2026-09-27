@@ -1,6 +1,6 @@
 ## A. High Level Sales Analysis
 
-### What was the total quantity sold for all products?
+### 1. What was the total quantity sold for all products?
 ```sql
 SELECT
 	SUM(qty) AS total_quantity_sold
