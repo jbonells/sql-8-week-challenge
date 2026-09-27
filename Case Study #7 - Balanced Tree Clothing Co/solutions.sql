@@ -93,3 +93,97 @@ SELECT
 	ROUND(AVG(total_revenue) FILTER (WHERE member = 't'), 2) AS members_average,
 	ROUND(AVG(total_revenue) FILTER (WHERE member = 'f'), 2) AS non_members_average
 FROM transactions;
+
+
+-- C. Product Analysis
+
+-- 1. What are the top 3 products by total revenue before discount?
+SELECT
+	pd.product_name,
+	SUM(s.qty * s.price) AS total_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.product_name
+ORDER BY total_revenue DESC
+LIMIT 3;
+
+-- 2. What is the total quantity, revenue and discount for each segment?
+SELECT
+	pd.segment_id,
+    SUM(s.qty) AS total_quantity,
+    SUM(s.qty * s.price) AS total_revenue,
+    ROUND(SUM(s.qty * s.price * s.discount / 100.0), 2) AS total_discount
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.segment_id
+ORDER BY pd.segment_id;
+
+-- 3. What is the top selling product for each segment?
+WITH top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.segment_name ORDER BY SUM(s.qty) DESC) AS ranking,
+		pd.segment_name AS segment,
+		pd.product_name AS product,
+		SUM(s.qty) AS total_quantity    
+	FROM sales s
+	INNER JOIN product_details pd
+		ON s.prod_id = pd.product_id
+	GROUP BY pd.segment_name, pd.product_name
+)
+
+SELECT
+	segment,
+	product,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY segment;
+
+-- 4. What is the total quantity, revenue and discount for each category?
+SELECT
+	pd.category_id,
+    SUM(s.qty) AS total_quantity,
+    SUM(s.qty * s.price) AS total_revenue,
+    ROUND(SUM(s.qty * s.price * s.discount / 100.0), 2) AS total_discount
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.category_id
+ORDER BY pd.category_id;
+
+-- 5. What is the top selling product for each category?
+WITH top_selling AS (
+	SELECT
+		ROW_NUMBER() OVER (PARTITION BY pd.category_name ORDER BY SUM(s.qty) DESC) AS ranking,
+		pd.category_name AS category,
+		pd.product_name AS product,
+		SUM(s.qty) AS total_quantity    
+	FROM sales s
+	INNER JOIN product_details pd
+		ON s.prod_id = pd.product_id
+	GROUP BY pd.category_name, pd.product_name
+)
+
+SELECT
+	category,
+	product,
+	total_quantity
+FROM top_selling
+WHERE ranking = 1
+ORDER BY category;
+
+-- 6. What is the percentage split of revenue by product for each segment?
+
+
+-- 7. What is the percentage split of revenue by segment for each category?
+
+
+-- 8. What is the percentage split of total revenue by category?
+
+
+-- 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
+
+
+-- 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?

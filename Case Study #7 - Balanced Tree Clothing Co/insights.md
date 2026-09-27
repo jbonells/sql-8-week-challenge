@@ -24,7 +24,7 @@ FROM sales;
 ```
 
 #### Steps:
-- Apply the **SUM()** aggregate function to the product of `qty` and `price` to calculate the total sales revenue.
+- Apply the **SUM()** aggregate function to calculate the total sales revenue.
 - (Optional) Assign the alias `total_quantity_sold` to the resulting column for clear presentation in the final output report.
 
 #### Answer:
@@ -168,7 +168,7 @@ FROM transactions;
 #### Steps:
 - Define a Common Table Expression (`transactions`) querying the `sales` table.
 - Use **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`member = 't'`) to tally unique member transactions.
-- Use **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`member = 't'`) to tally unique non-member transactions.
+- Use **COUNT DISTINCT** with a **FILTER (WHERE ...)** clause (`member = 'f'`) to tally unique non-member transactions.
 - Use **COUNT DISTINCT** to calculate total unique transactions.
 - Multiply `members` by 100.0 and divide by `total`to compute the member transaction share.
 - Multiply `non_members` by 100.0 and divide by `total`to compute the non-member transaction share.
@@ -200,10 +200,138 @@ FROM transactions;
 - Group by `txn_id` and `member` to aggregate revenue per transaction and membership status.
 - Apply the **SUM()** aggregate function to calculate the total sales revenue per transaction.
 - Apply conditional aggregations using **AVG()** with a **FILTER (WHERE ...)** clause (`member = 't'`) to calculate the average transaction revenue for members.
-- Apply conditional aggregations using **AVG()** with a **FILTER (WHERE ...)** clause (`member = 't'`) to calculate the average transaction revenue for non-members.
+- Apply conditional aggregations using **AVG()** with a **FILTER (WHERE ...)** clause (`member = 'f'`) to calculate the average transaction revenue for non-members.
 - Wrap the calculations in **ROUND()** to format the results to two decimal places.
 
 #### Answer:
 | members_average | non_members_average |
 | --------------- | ------------------- |
 | 516.27          | 515.04              |
+
+
+## C. Product Analysis
+
+### 1. What are the top 3 products by total revenue before discount?
+```sql
+SELECT
+	pd.product_name,
+	SUM(s.qty * s.price) AS total_revenue
+FROM sales s
+INNER JOIN product_details pd
+	ON s.prod_id = pd.product_id
+GROUP BY pd.product_name
+ORDER BY total_revenue DESC
+LIMIT 3;
+```
+
+#### Steps:
+- Use an **INNER JOIN** on `s.prod_id = pd.product_id` to connect the `sales` and `product_details` tables.
+- Group records by `product_name` to aggregate sales per product.
+- Apply the **SUM()** aggregate function to calculate the overall sales revenue per product.
+- Order the final output in descending sequence by `total_revenue` to rank products by revenue.
+- Use **LIMIT 3** to isolate the top three products by total sales revenue.
+
+#### Answer:
+| product_name                 | total_revenue |
+| ---------------------------- | ------------- |
+| Blue Polo Shirt - Mens       | 217683        |
+| Grey Fashion Jacket - Womens | 209304        |
+| White Tee Shirt - Mens       | 152000        |
+
+### 2. What is the total quantity, revenue and discount for each segment?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 3. What is the top selling product for each segment?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 4. What is the total quantity, revenue and discount for each category?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 5. What is the top selling product for each category?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 6. What is the percentage split of revenue by product for each segment?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 7. What is the percentage split of revenue by segment for each category?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 8. What is the percentage split of total revenue by category?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 9. What is the total transaction “penetration” for each product? (hint: penetration = number of transactions where at least 1 quantity of a product was purchased divided by total number of transactions)
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 10. What is the most common combination of at least 1 quantity of any 3 products in a 1 single transaction?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
