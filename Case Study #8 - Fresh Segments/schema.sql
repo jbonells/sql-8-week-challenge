@@ -15541,3 +15541,6 @@ VALUES
 
 ALTER TABLE fresh_segments.interest_metrics
 ALTER COLUMN month_year TYPE DATE USING TO_DATE(month_year, 'MM-YYYY');
+
+DELETE FROM interest_metrics
+WHERE month_year IS NULL;

@@ -17,25 +17,85 @@ GROUP BY month_year
 ORDER BY month_year NULLS FIRST;
 
 -- 3. What do you think we should do with these null values in the fresh_segments.interest_metrics
-
+DELETE FROM interest_metrics
+WHERE month_year IS NULL;
 
 -- 4. How many interest_id values exist in the fresh_segments.interest_metrics table but not in the fresh_segments.interest_map table? What about the other way around?
+SELECT
+	COUNT(DISTINCT met.interest_id) AS in_metrics_not_map
+FROM interest_metrics met
+LEFT JOIN interest_map map
+	ON met.interest_id::INTEGER = map.id
+WHERE map.id IS NULL;
 
+SELECT
+	COUNT(DISTINCT map.id) AS in_map_not_metrics
+FROM interest_map map
+LEFT JOIN interest_metrics met
+	ON map.id = met.interest_id::INTEGER
+WHERE met.interest_id IS NULL;
 
 -- 5. Summarise the id values in the fresh_segments.interest_map by its total record count in this table
-
+SELECT
+	COUNT(id) AS total_records
+FROM interest_map;
 
 -- 6. What sort of table join should we perform for our analysis and why? Check your logic by checking the rows where interest_id = 21246 in your joined output and include all columns from fresh_segments.interest_metrics and all columns from fresh_segments.interest_map except from the id column.
-
+SELECT
+	met.*,
+	map.interest_name,
+	map.interest_summary,
+	map.created_at,
+	map.last_modified
+FROM interest_metrics met
+INNER JOIN interest_map map
+	ON met.interest_id::INTEGER = map.id
+WHERE met.interest_id = '21246';
 
 -- 7. Are there any records in your joined table where the month_year value is before the created_at value from the fresh_segments.interest_map table? Do you think these values are valid and why?
+SELECT
+	COUNT(*) AS total_records_before_created,
+	COUNT(DISTINCT met.interest_id) AS distinct_interests_affected
+FROM interest_metrics met
+INNER JOIN interest_map map
+	ON met.interest_id::INTEGER = map.id
+WHERE met.month_year < map.created_at::DATE;
 
+SELECT
+	met.interest_id,
+	met.month_year,
+	map.created_at,
+	DATE_TRUNC('month', map.created_at) = met.month_year AS same_month
+FROM interest_metrics met
+INNER JOIN interest_map map
+	ON met.interest_id::INTEGER = map.id
+WHERE met.month_year < map.created_at::DATE;
+
+SELECT
+	COUNT(*) FILTER (WHERE DATE_TRUNC('month', map.created_at) != met.month_year) AS different_month_count
+FROM interest_metrics met
+INNER JOIN interest_map map ON
+	met.interest_id::INTEGER = map.id
+WHERE met.month_year < map.created_at::DATE;
 
 
 -- B. Interest Analysis
 
 -- 1. Which interests have been present in all month_year dates in our dataset?
+WITH interest AS (
+	SELECT
+		interest_id, 
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+)
 
+SELECT
+	total_months,
+	COUNT(*) AS interests_count
+FROM interest
+GROUP BY total_months
+HAVING total_months = (SELECT COUNT(DISTINCT month_year) FROM interest_metrics);
 
 -- 2. Using this same total_months measure - calculate the cumulative percentage of all records starting at 14 months - which total_months value passes the 90% cumulative percentage value?
 
