@@ -36,7 +36,7 @@ ORDER BY customer_id;
 ```
 
 #### Steps:
-- Group the records by `customer_id` to evaluate visits per individual customer.
+- Group records by `customer_id` to evaluate visits per individual customer.
 - Use **COUNT DISTINCT** to calculate the total number of unique visit days per customer.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
