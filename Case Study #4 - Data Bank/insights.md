@@ -107,6 +107,7 @@ ORDER BY r.region_name;
 #### Steps:
 - Use an **INNER JOIN** on `region_name` to connect the `customer_nodes` and `regions` tables.
 - Apply a **WHERE** clause (`end_date <> '9999-12-31'`) to isolate completed node reallocations, excluding ongoing placeholder dates that would distort the average.
+- Group the filtered records by `region_name` to aggregate the reallocation durations for each distinct region.
 - Use **PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...)** to calculate the 50th percentile (median), 80th percentile, and 95th percentile of node reallocation durations in days for each region.
 - (Optional) Order the final dataset in ascending sequence by `region_name` for structured presentation.
 
@@ -134,7 +135,7 @@ ORDER BY txn_type;
 ```
 
 #### Steps:
-- Group the records by `txn_type` to aggregate transaction activity by type.
+- Group records by `txn_type` to aggregate transaction activity by type.
 - Apply the **COUNT()** aggregate function to calculate the total volume of transactions per type.
 - Use the **SUM()** aggregate function to calculate the cumulative monetary value for each transaction type.
 - (Optional) Order the final dataset in ascending sequence by `txn_type` for structured presentation.
@@ -167,7 +168,7 @@ FROM customer_deposits;
 #### Steps:
 - Define a Common Table Expression (`customer_deposit_summary`) querying the `customer_transactions` table.
 - Apply a **WHERE** clause (`txn_type = 'deposit'`) to isolate deposit records.
-- Group the records by `customer_id` to aggregate deposit activity at the customer level.
+- Group the filtered records by `customer_id` to aggregate deposit activity at the customer level.
 - Apply the **COUNT()** aggregate function to calculate each customer's total deposit frequency.
 - Use the **SUM()** aggregate function to calculate each customer's cumulative deposited value.
 - Apply the **AVG()** aggregate function across both aggregated fields in the main query to calculate the overall mean deposit count and mean deposit amount per customer.
@@ -632,7 +633,7 @@ ORDER BY month;
 - Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `date` to compute each customer's daily running balance.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month in the main query.
 - Apply a **GREATEST()** constraint to floor negative balances at 0, ensuring overdrawn accounts do not subtract from the total requirement.
-- Group by `month` and use **SUM()** to aggregate monthly non-compounding interest data across all customers.
+- Group records by `month` and use **SUM()** to aggregate monthly non-compounding interest data across all customers.
 - Wrap the calculation with **ROUND()** to present the final value as a rounded integer.
 - Order the final dataset chronologically by `month` for structured presentation.
 
@@ -728,7 +729,7 @@ ORDER BY month;
 - Compute daily compounded balance and daily interest.
 - Use the **GREATEST()** function to ensure interest is only awarded to positive balances, ignoring any overdrawn days.
 - Use **EXTRACT(MONTH FROM ...)** to extract the numeric calendar month in the main query.
-- Group by `month` and use **SUM()** to aggregate monthly compounding interest data across all customers.
+- Group records by `month` and use **SUM()** to aggregate monthly compounding interest data across all customers.
 - Wrap the calculation with **ROUND()** to present the final value as a rounded integer.
 - Order the final dataset chronologically by `month` for structured presentation.
 
