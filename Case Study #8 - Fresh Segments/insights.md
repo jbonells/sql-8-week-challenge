@@ -515,8 +515,8 @@ LIMIT 10;
 - Use **DISTINCT ON** combined with an **ORDER BY** to isolate the single maximum composition value and its corresponding `month_year` for each interest.
 - Use an **INNER JOIN** on `interest_id` to connect the `interest_metrics` table and the `interest_months` CTE.
 - Use an **INNER JOIN** on `map.id = mc.interest_id`, casting `interest_id` to **INTEGER** to connect the `max_composition` CTE and the `interest_map` table.
-- <u>Top 10 interests<u>: Order the final dataset by `composition` in a DESCENDING sequence and apply a **LIMIT 10** clause to return the top 10 largest composition values.
-- <u>Bottom 10 interests<u>: Order the final dataset by `composition` in an ASCENDING sequence and apply a **LIMIT 10** clause to return the bottom 10 largest composition values.
+- **Top 10 interests**: Order the final dataset by `composition` in a DESCENDING sequence and apply a **LIMIT 10** clause to return the top 10 largest composition values.
+- **Bottom 10 interests**: Order the final dataset by `composition` in an ASCENDING sequence and apply a **LIMIT 10** clause to return the bottom 10 largest composition values.
 
 #### Answer:
 | interest_name                     | month_year | composition |
