@@ -175,13 +175,89 @@ ORDER BY met.month_year;
 -- C. Segment Analysis
 
 -- 1. Using our filtered dataset by removing the interests with less than 6 months worth of data, which are the top 10 and bottom 10 interests which have the largest composition values in any month_year? Only use the maximum composition value for each interest but you must keep the corresponding month_year
+-- Top 10 Interests
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+),
+max_composition AS (
+	SELECT
+		DISTINCT ON (met.interest_id)
+		met.interest_id,
+		met.month_year,
+		met.composition
+	FROM interest_metrics met
+	INNER JOIN interest_months im
+		ON met.interest_id = im.interest_id
+	ORDER BY met.interest_id, met.composition DESC
+)
 
+SELECT
+	map.interest_name,
+	mc.month_year,
+	mc.composition
+FROM max_composition mc
+JOIN interest_map map
+	ON map.id = mc.interest_id::INTEGER
+ORDER BY mc.composition DESC
+LIMIT 10;
+
+-- Bottom 10 Interests
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+),
+max_composition AS (
+	SELECT
+		DISTINCT ON (met.interest_id)
+		met.interest_id,
+		met.month_year,
+		met.composition
+	FROM interest_metrics met
+	INNER JOIN interest_months im
+		ON met.interest_id = im.interest_id
+	ORDER BY met.interest_id, met.composition DESC
+)
+
+SELECT
+	map.interest_name,
+	mc.month_year,
+	mc.composition
+FROM max_composition mc
+JOIN interest_map map
+	ON map.id = mc.interest_id::INTEGER
+ORDER BY mc.composition ASC
+LIMIT 10;
 
 -- 2. Which 5 interests had the lowest average ranking value?
-
+SELECT
+	map.interest_name,
+	ROUND(AVG(met.ranking), 2) AS avg_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+GROUP BY map.interest_name
+ORDER BY avg_ranking ASC
+LIMIT 5;
 
 -- 3. Which 5 interests had the largest standard deviation in their percentile_ranking value?
-
+SELECT
+	map.interest_name,
+	ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+GROUP BY map.interest_name
+ORDER BY std_dev_ranking DESC NULLS LAST
+LIMIT 5;
 
 -- 4. For the 5 interests found in the previous question - what was minimum and maximum percentile_ranking values for each interest and its corresponding year_month value? Can you describe what is happening for these 5 interests?
 

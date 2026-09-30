@@ -443,36 +443,167 @@ ORDER BY met.month_year;
 
 ### 1. Using our filtered dataset by removing the interests with less than 6 months worth of data, which are the top 10 and bottom 10 interests which have the largest composition values in any month_year? Only use the maximum composition value for each interest but you must keep the corresponding month_year
 ```sql
+-- Top 10 Interests
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+),
+max_composition AS (
+	SELECT
+		DISTINCT ON (met.interest_id)
+		met.interest_id,
+		met.month_year,
+		met.composition
+	FROM interest_metrics met
+	INNER JOIN interest_months im
+		ON met.interest_id = im.interest_id
+	ORDER BY met.interest_id, met.composition DESC
+)
 
+SELECT
+	map.interest_name,
+	mc.month_year,
+	mc.composition
+FROM max_composition mc
+JOIN interest_map map
+	ON map.id = mc.interest_id::INTEGER
+ORDER BY mc.composition DESC
+LIMIT 10;
+
+-- Bottom 10 Interests
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+),
+max_composition AS (
+	SELECT
+		DISTINCT ON (met.interest_id)
+		met.interest_id,
+		met.month_year,
+		met.composition
+	FROM interest_metrics met
+	INNER JOIN interest_months im
+		ON met.interest_id = im.interest_id
+	ORDER BY met.interest_id, met.composition DESC
+)
+
+SELECT
+	map.interest_name,
+	mc.month_year,
+	mc.composition
+FROM max_composition mc
+JOIN interest_map map
+	ON map.id = mc.interest_id::INTEGER
+ORDER BY mc.composition ASC
+LIMIT 10;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`interest_months`) querying the `interest_metrics` table.
+- Group records by `interest_id` to aggregate monthly activity per interest.
+- Use **COUNT DISTINCT** to calculate the total unique active months per interest.
+- Apply a **HAVING** clause (`COUNT(DISTINCT month_year) >= 6`) to isolate qualified interests active across at least 6 reporting months.
+- Define a Common Table Expression (`max_composition`) that joins the `interest_metrics` table and the `interest_months` CTE on `interest_id`.
+- Use **DISTINCT ON** combined with an **ORDER BY** to isolate the single maximum composition value and its corresponding `month_year` for each interest.
+- Use an **INNER JOIN** on `interest_id` to connect the `interest_metrics` table and the `interest_months` CTE.
+- Use an **INNER JOIN** on `map.id = mc.interest_id`, casting `interest_id` to **INTEGER** to connect the `max_composition` CTE and the `interest_map` table.
+- <u>Top 10 interests<u>: Order the final dataset by `composition` in a DESCENDING sequence and apply a **LIMIT 10** clause to return the top 10 largest composition values.
+- <u>Bottom 10 interests<u>: Order the final dataset by `composition` in an ASCENDING sequence and apply a **LIMIT 10** clause to return the bottom 10 largest composition values.
 
 #### Answer:
+| interest_name                     | month_year | composition |
+| --------------------------------- | ---------- | ----------- |
+| Work Comes First Travelers        | 2018-12-01 | 21.2        |
+| Gym Equipment Owners              | 2018-07-01 | 18.82       |
+| Furniture Shoppers                | 2018-07-01 | 17.44       |
+| Luxury Retail Shoppers            | 2018-07-01 | 17.19       |
+| Luxury Boutique Hotel Researchers | 2018-10-01 | 15.15       |
+| Luxury Bedding Shoppers           | 2018-12-01 | 15.05       |
+| Shoe Shoppers                     | 2018-07-01 | 14.91       |
+| Cosmetics and Beauty Shoppers     | 2018-07-01 | 14.23       |
+| Luxury Hotel Guests               | 2018-07-01 | 14.1        |
+| Luxury Retail Researchers         | 2018-07-01 | 13.97       |
 
+| interest_name                     | month_year | composition |
+| --------------------------------- | ---------- | ----------- |
+| Astrology Enthusiasts             | 2018-08-01 | 1.88        |
+| Medieval History Enthusiasts      | 2018-10-01 | 1.94        |
+| Dodge Vehicle Shoppers            | 2019-03-01 | 1.97        |
+| Xbox Enthusiasts                  | 2018-07-01 | 2.05        |
+| Camaro Enthusiasts                | 2018-10-01 | 2.08        |
+| League of Legends Video Game Fans | 2019-01-01 | 2.09        |
+| Budget Mobile Phone Researchers   | 2019-08-01 | 2.09        |
+| Super Mario Bros Fans             | 2018-07-01 | 2.12        |
+| Oakland Raiders Fans              | 2019-08-01 | 2.14        |
+| Budget Wireless Shoppers          | 2018-07-01 | 2.18        |
 
 ### 2. Which 5 interests had the lowest average ranking value?
 ```sql
-
+SELECT
+	map.interest_name,
+	ROUND(AVG(met.ranking), 2) AS avg_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+GROUP BY map.interest_name
+ORDER BY avg_ranking ASC
+LIMIT 5;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
+- Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
+- Use the **AVG()** aggregate function to calculate the average ranking per interest
+- Wrap it in the **ROUND()** function to limit the result to 2 decimal places.
+- Order the final dataset in ascending sequence by `avg_ranking` to bring the best-ranking interests to the top.
+- Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests.
 
 #### Answer:
-
+| interest_name                  | avg_ranking |
+| ------------------------------ | ----------- |
+| Winter Apparel Shoppers        | 1.00        |
+| Fitness Activity Tracker Users | 4.11        |
+| Mens Shoe Shoppers             | 5.93        |
+| Elite Cycling Gear Shoppers    | 7.80        |
+| Shoe Shoppers                  | 9.36        |
 
 ### 3. Which 5 interests had the largest standard deviation in their percentile_ranking value?
 ```sql
-
+SELECT
+	map.interest_name,
+	ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+GROUP BY map.interest_name
+ORDER BY std_dev_ranking DESC NULLS LAST
+LIMIT 5;
 ```
 
 #### Steps:
-- 
+- Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
+- Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
+- Use the **STDDEV_SAMP()** function to calculate the sample standard deviation of the percentile ranking for each interest.
+- Cast the standard deviation to **NUMERIC**, then wrap it in the **ROUND()** function to limit the result to 2 decimal places.
+- Order the final dataset in descending sequence by `std_dev_ranking`, utilising **NULLS LAST** to ensure any null values drop to the bottom of the results.
+- Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests with the highest variance in their rankings.
 
 #### Answer:
-
+| interest_name                          | std_dev_ranking |
+| -------------------------------------- | --------------- |
+| Blockbuster Movie Fans                 | 41.27           |
+| Android Fans                           | 30.72           |
+| TV Junkies                             | 30.36           |
+| Techies                                | 30.18           |
+| Entertainment Industry Decision Makers | 28.97           |
 
 ### 4. For the 5 interests found in the previous question - what was minimum and maximum percentile_ranking values for each interest and its corresponding year_month value? Can you describe what is happening for these 5 interests?
 ```sql
