@@ -277,7 +277,7 @@ ORDER BY s.customer_id;
 
 #### Steps:
 - Use an **INNER JOIN** on `product_id` to connect the `sales` and `menu` tables.
-- Group the filtered records by `customer_id` to aggregate point metrics at the individual customer grain.
+- Group the joined records by `customer_id` to aggregate point metrics at the individual customer grain.
 - Apply a **CASE** statement inside the **SUM()** function to evaluate each row—multiplying the price by 20 for sushi and 10 for all other items.
 - (Optional) Order the final dataset in ascending sequence by `customer_id` for structured presentation.
 
