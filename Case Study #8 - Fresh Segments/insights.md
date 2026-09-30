@@ -224,7 +224,7 @@ WHERE met.month_year < map.created_at::DATE;
 
 ### 1. Which interests have been present in all month_year dates in our dataset?
 ```sql
-WITH interest AS (
+WITH interest_months AS (
 	SELECT
 		interest_id, 
 		COUNT(DISTINCT month_year) AS total_months
@@ -235,13 +235,13 @@ WITH interest AS (
 SELECT
 	total_months,
 	COUNT(*) AS interests_count
-FROM interest
+FROM interest_months
 GROUP BY total_months
 HAVING total_months = (SELECT COUNT(DISTINCT month_year) FROM interest_metrics);
 ```
 
 #### Steps:
-- Define a Common Table Expression (`interest`) querying the `interest_metrics` table.
+- Define a Common Table Expression (`interest_months`) querying the `interest_metrics` table.
 - Group records by `interest_id` to aggregate monthly activity per interest.
 - Use **COUNT DISTINCT** to calculate the total unique active months per interest.
 - Group records by `total_months` to aggregate interests by their active duration.
@@ -255,27 +255,193 @@ HAVING total_months = (SELECT COUNT(DISTINCT month_year) FROM interest_metrics);
 
 ### 2. Using this same total_months measure - calculate the cumulative percentage of all records starting at 14 months - which total_months value passes the 90% cumulative percentage value?
 ```sql
+WITH interest_months AS (
+	SELECT
+		interest_id, 
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+),
+interest_count AS (
+	SELECT
+		total_months,
+		COUNT(*) AS interests_count
+	FROM interest_months
+	GROUP BY total_months
+)
 
+SELECT
+	total_months,
+	interests_count,
+	SUM(interests_count) OVER (ORDER BY total_months DESC) AS cumulative_count,
+	ROUND(
+		100.0 * SUM(interests_count) OVER (ORDER BY total_months DESC)
+		/ SUM(interests_count) OVER (),
+		2
+	) AS cumulative_percentage
+FROM interest_count
+ORDER BY total_months DESC;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`interest_months`) querying the `interest_metrics` table.
+- Group records by `interest_id` to aggregate monthly activity per interest.
+- Use **COUNT DISTINCT** to calculate the total unique active months per interest.
+- Define a Common Table Expression (`interest_count`) querying the `interest_months` CTE.
+- Group records by `total_months` to aggregate interests sharing the same active duration.
+- Apply the **COUNT()** aggregate function to calculate the number of interests per active month duration.
+- Apply a **SUM() OVER ()** window function ordered by `total_months` descending to compute a running cumulative total of interests.
+- Apply a **SUM() OVER ()** window function ordered by `total_months` descending to compute a running cumulative total of interests.
+- Apply a **SUM() OVER ()** window function across the entire dataset to compute total interest count across all duration buckets.
+- Multiply cumulative count by 100.0 and divide by total overall interest count to derive relative cumulative percentage.
+- Wrap the calculation in **ROUND()** to format the result to two decimal places.
+- (Optional) Order the final dataset in descending sequence by `total_months` for structured presentation.
 
 #### Answer:
+| total_months | interests_count | cumulative_count | cumulative_percentage |
+| ------------ | --------------- | ---------------- | --------------------- |
+| 14           | 480             | 480              | 39.93                 |
+| 13           | 82              | 562              | 46.76                 |
+| 12           | 65              | 627              | 52.16                 |
+| 11           | 94              | 721              | 59.98                 |
+| 10           | 86              | 807              | 67.14                 |
+| 9            | 95              | 902              | 75.04                 |
+| 8            | 67              | 969              | 80.62                 |
+| 7            | 90              | 1059             | 88.10                 |
+| 6            | 33              | 1092             | 90.85                 |
+| 5            | 38              | 1130             | 94.01                 |
+| 4            | 32              | 1162             | 96.67                 |
+| 3            | 15              | 1177             | 97.92                 |
+| 2            | 12              | 1189             | 98.92                 |
+| 1            | 13              | 1202             | 100.00                |
 
+- The first value where cumulative percentage passes 90% (90.85%) is **6**, moving from 14 down to 1.
 
 ### 3. If we were to remove all interest_id values which are lower than the total_months value we found in the previous question - how many total data points would we be removing?
 ```sql
+WITH interest_months AS (
+	SELECT
+		interest_id, 
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+)
 
+SELECT
+	COUNT(*) AS interests_to_remove,
+	SUM(total_months) AS data_points_removed
+FROM interest_months
+WHERE total_months < 6;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`interest_months`) querying the `interest_metrics` table.
+- Group records by `interest_id` to aggregate monthly activity per interest.
+- Use **COUNT DISTINCT** to calculate the total unique active months per interest.
+- Apply a **WHERE** clause (`total_months < 6`) to isolate interests present in fewer than 6 reporting months.
+- Apply the **COUNT()** aggregate function to calculate how many interests fall below the threshold.
+- Apply the **SUM()** aggregate function to compute the number of data points (rows) those interests contribute.
 
 #### Answer:
-
+| interests_to_remove | data_points_removed |
+| ------------------- | ------------------- |
+| 110                 | 400                 |
 
 ### 4. Does this decision make sense to remove these data points from a business perspective? Use an example where there are all 14 months present to a removed interest example for your arguments - think about what it means to have less months present from a segment perspective.
+```sql
+SELECT
+	map.interest_name,
+	met.month_year,
+	met.composition,
+	met.ranking,
+	met.percentile_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+WHERE map.interest_name IN ('Nutrition Conscious Eaters', 'Big Box Shoppers')
+ORDER BY map.interest_name, met.month_year;
+```
+
+#### Steps:
+- Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
+- Apply a **WHERE** clause (`interest_name IN ('Nutrition Conscious Eaters', 'Big Box Shoppers')`) to isolate sample interest segments.
+- (Optional) Order the final dataset in ascending sequence by `interest_name` and `month_year` for structured presentation.
+
+#### Answer:
+| interest_name              | month_year | composition | ranking | percentile_ranking |
+| -------------------------- | ---------- | ----------- | ------- | ------------------ |
+| Big Box Shoppers           | 2019-08-01 | 2.6         | 437     | 61.97              |
+| Nutrition Conscious Eaters | 2018-07-01 | 10.77       | 5       | 99.31              |
+| Nutrition Conscious Eaters | 2018-08-01 | 3.59        | 100     | 86.96              |
+| Nutrition Conscious Eaters | 2018-09-01 | 2.4         | 235     | 69.87              |
+| Nutrition Conscious Eaters | 2018-10-01 | 3.32        | 155     | 81.91              |
+| Nutrition Conscious Eaters | 2018-11-01 | 2.88        | 141     | 84.81              |
+| Nutrition Conscious Eaters | 2018-12-01 | 3.08        | 98      | 90.15              |
+| Nutrition Conscious Eaters | 2019-01-01 | 2.48        | 177     | 81.81              |
+| Nutrition Conscious Eaters | 2019-02-01 | 3.25        | 173     | 84.57              |
+| Nutrition Conscious Eaters | 2019-03-01 | 2.95        | 190     | 83.27              |
+| Nutrition Conscious Eaters | 2019-04-01 | 2.59        | 202     | 81.62              |
+| Nutrition Conscious Eaters | 2019-05-01 | 1.93        | 251     | 70.71              |
+| Nutrition Conscious Eaters | 2019-06-01 | 1.63        | 568     | 31.07              |
+| Nutrition Conscious Eaters | 2019-07-01 | 1.96        | 591     | 31.6               |
+| Nutrition Conscious Eaters | 2019-08-01 | 2.99        | 315     | 72.58              |
+
+- Big Box Shoppers has a single data point. There iss no way to tell if it is a new segment, a temporary tracking gap, or a one-off — no trend can be drawn from one month.
+- Nutrition Conscious Eaters shows a real trend across all 14 months. That kind of movement is what a segments business actually sells: growth, decline, seasonality.
+- This supports removing interests with fewer than 6 months of history: without enough data points, an interest cannot support the kind of trend analysis the segments data is meant for.
+
+### 5. After removing these interests - how many unique interests are there for each month?
+```sql
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+)
+SELECT
+	met.month_year,
+	COUNT(DISTINCT met.interest_id) AS unique_interests
+FROM interest_metrics met
+INNER JOIN interest_months im
+	ON met.interest_id = im.interest_id
+GROUP BY met.month_year
+ORDER BY met.month_year;
+```
+
+#### Steps:
+- Define a Common Table Expression (`interest_months`) querying the `interest_metrics` table.
+- Group records by `interest_id` to aggregate monthly activity per interest.
+- Use **COUNT DISTINCT** to calculate the total unique active months per interest.
+- Apply a **HAVING** clause (`COUNT(DISTINCT month_year) >= 6`) to isolate qualified interests active across at least 6 reporting months.
+- Use an **INNER JOIN** on `interest_id` to connect the `interest_metrics` table and the `interest_months` CTE.
+- Group the joined records by `month_year` to aggregate active interests per reporting time period.
+- Use **COUNT DISTINCT** to calculate total unique qualified interests per month,
+- (Optional) Order the final dataset in ascending sequence by `month_year` for structured presentation.
+
+#### Answer:
+| month_year | unique_interests |
+| ---------- | ---------------- |
+| 2018-07-01 | 709              |
+| 2018-08-01 | 752              |
+| 2018-09-01 | 774              |
+| 2018-10-01 | 853              |
+| 2018-11-01 | 925              |
+| 2018-12-01 | 986              |
+| 2019-01-01 | 966              |
+| 2019-02-01 | 1072             |
+| 2019-03-01 | 1078             |
+| 2019-04-01 | 1035             |
+| 2019-05-01 | 827              |
+| 2019-06-01 | 804              |
+| 2019-07-01 | 836              |
+| 2019-08-01 | 1062             |
+
+
+## C. Segment Analysis
+
+### 1. Using our filtered dataset by removing the interests with less than 6 months worth of data, which are the top 10 and bottom 10 interests which have the largest composition values in any month_year? Only use the maximum composition value for each interest but you must keep the corresponding month_year
 ```sql
 
 ```
@@ -286,7 +452,100 @@ HAVING total_months = (SELECT COUNT(DISTINCT month_year) FROM interest_metrics);
 #### Answer:
 
 
-### 5. After removing these interests - how many unique interests are there for each month?
+### 2. Which 5 interests had the lowest average ranking value?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 3. Which 5 interests had the largest standard deviation in their percentile_ranking value?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 4. For the 5 interests found in the previous question - what was minimum and maximum percentile_ranking values for each interest and its corresponding year_month value? Can you describe what is happening for these 5 interests?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 5. How would you describe our customers in this segment based off their composition and ranking values? What sort of products or services should we show to these customers and what should we avoid?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+
+## D. Index Analysis
+- The index_value is a measure which can be used to reverse calculate the average composition for Fresh Segments’ clients.
+- Average composition can be calculated by dividing the composition column by the index_value column rounded to 2 decimal places.
+
+### 1. What is the top 10 interests by the average composition for each month?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 2. For all of these top 10 interests - which interest appears the most often?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 3. What is the average of the average composition for the top 10 interests for each month?
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 4. What is the 3 month rolling average of the max average composition value from September 2018 to August 2019 and include the previous top ranking interests in the same output shown below.
+```sql
+
+```
+
+#### Steps:
+- 
+
+#### Answer:
+
+
+### 5. Provide a possible reason why the max average composition might change from month to month? Could it signal something is not quite right with the overall business model for Fresh Segments?
 ```sql
 
 ```

@@ -82,7 +82,7 @@ WHERE met.month_year < map.created_at::DATE;
 -- B. Interest Analysis
 
 -- 1. Which interests have been present in all month_year dates in our dataset?
-WITH interest AS (
+WITH interest_months AS (
 	SELECT
 		interest_id, 
 		COUNT(DISTINCT month_year) AS total_months
@@ -93,21 +93,83 @@ WITH interest AS (
 SELECT
 	total_months,
 	COUNT(*) AS interests_count
-FROM interest
+FROM interest_months
 GROUP BY total_months
 HAVING total_months = (SELECT COUNT(DISTINCT month_year) FROM interest_metrics);
 
 -- 2. Using this same total_months measure - calculate the cumulative percentage of all records starting at 14 months - which total_months value passes the 90% cumulative percentage value?
+WITH interest_months AS (
+	SELECT
+		interest_id, 
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+),
+interest_count AS (
+	SELECT
+		total_months,
+		COUNT(*) AS interests_count
+	FROM interest_months
+	GROUP BY total_months
+)
 
+SELECT
+	total_months,
+	interests_count,
+	SUM(interests_count) OVER (ORDER BY total_months DESC) AS cumulative_count,
+	ROUND(
+		100.0 * SUM(interests_count) OVER (ORDER BY total_months DESC)
+		/ SUM(interests_count) OVER (),
+		2
+	) AS cumulative_percentage
+FROM interest_count
+ORDER BY total_months DESC;
 
 -- 3. If we were to remove all interest_id values which are lower than the total_months value we found in the previous question - how many total data points would we be removing?
+WITH interest_months AS (
+	SELECT
+		interest_id, 
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+)
 
+SELECT
+	COUNT(*) AS interests_to_remove,
+	SUM(total_months) AS data_points_removed
+FROM interest_months
+WHERE total_months < 6;
 
 -- 4. Does this decision make sense to remove these data points from a business perspective? Use an example where there are all 14 months present to a removed interest example for your arguments - think about what it means to have less months present from a segment perspective.
-
+SELECT
+	map.interest_name,
+	met.month_year,
+	met.composition,
+	met.ranking,
+	met.percentile_ranking
+FROM interest_metrics met
+JOIN interest_map map
+	ON map.id = met.interest_id::INTEGER
+WHERE map.interest_name IN ('Nutrition Conscious Eaters', 'Big Box Shoppers')
+ORDER BY map.interest_name, met.month_year;
 
 -- 5. After removing these interests - how many unique interests are there for each month?
-
+WITH interest_months AS (
+	SELECT
+		interest_id,
+		COUNT(DISTINCT month_year) AS total_months
+	FROM interest_metrics
+	GROUP BY interest_id
+	HAVING COUNT(DISTINCT month_year) >= 6
+)
+SELECT
+	met.month_year,
+	COUNT(DISTINCT met.interest_id) AS unique_interests
+FROM interest_metrics met
+INNER JOIN interest_months im
+	ON met.interest_id = im.interest_id
+GROUP BY met.month_year
+ORDER BY met.month_year;
 
 
 -- C. Segment Analysis
