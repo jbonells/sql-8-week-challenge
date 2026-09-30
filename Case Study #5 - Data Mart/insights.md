@@ -352,7 +352,7 @@ ORDER BY retail_sales DESC;
 
 #### Steps:
 - Apply a **WHERE** clause (`platform = 'Retail'`) to include only retail sales.
-- Group records by `age_band` and `demographic` to aggregate sales for each age band and demographic combination.
+- Group the filtered records by `age_band` and `demographic` to aggregate sales for each age band and demographic combination.
 - Use the **SUM()** aggregate function to add all individual `sales` values for each group.
 - Apply a nested **SUM()** aggregate function inside a **SUM() OVER ()** window function to calculate overall total retail sales across all groups.
 - Multiply the grouped sales by 100 and apply a **NUMERIC** cast to prevent integer division before dividing by total retail sales.
@@ -598,7 +598,7 @@ ORDER BY area, value;
 - Define a Common Table Expression (`period_sales`) cross-joining between `clean_weekly_sales` with `baseline`.
 - Apply a **CROSS JOIN LATERAL (VALUES ...)** clause to unpivot the dimension columns (`region`, `platform`, `age_band`, `demographic`, `customer_type`) into standard `area` and `value` key-value pairs.
 - Apply a **WHERE** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week + 11 AND calendar_year = 2020`) to restrict records to the 12-week pre/post window for the year 2020.
-- Group records by `area` and `value` to aggregate metrics per unpivoted dimension.
+- Group the filtered records by `area` and `value` to aggregate metrics per unpivoted dimension.
 - Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week - 12 AND baseline_week - 1`) to calculate 12-week pre-baseline sales.
 - Apply conditional aggregations using **SUM()** with a **FILTER (WHERE ...)** clause (`week_number BETWEEN baseline_week AND baseline_week + 11`) to calculate 12-week post-baseline sales.
 - Subtract `sales_before` from `sales_after` to compute the net sales difference.
