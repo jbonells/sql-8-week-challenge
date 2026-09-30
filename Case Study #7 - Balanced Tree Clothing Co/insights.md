@@ -587,6 +587,7 @@ LIMIT 1;
 - Use an **INNER JOIN** with `product_details` (`pd1`) on `ac.p1 = pd1.product_id` to retrieve the name of the first product.
 - Use an **INNER JOIN** with `product_details` (`pd2`) on `ac.p2 = pd2.product_id` to retrieve the name of the second product.
 - Use an **INNER JOIN** with `product_details` (`pd3`) on `ac.p3 = pd3.product_id` to retrieve the name of the third product.
+Group the joined records by `pd1.product_name`, `pd2.product_name`, and `pd3.product_name` to aggregate the transaction data for each distinct product triplet.
 - Use **COUNT DISTINCT** to calculate the total unique transaction volume for each three-product combination.
 - Order the final dataset in descending sequence by `combinations` to rank product combinations by frequency.
 - Use **LIMIT 1** to isolate the most frequently co-purchased product triplet.
