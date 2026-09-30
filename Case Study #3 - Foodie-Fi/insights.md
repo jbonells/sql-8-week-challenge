@@ -389,7 +389,7 @@ ORDER BY bucket;
 - Define a Common Table Expression (`customer_durations`) that joins the `trial_plan_dates` and `annual_plan_dates` CTEs on `customer_id`.
 - Use **WIDTH_BUCKET()** on the date difference across the range 1 to 181 into 6 equal intervals to assign each conversion to a numeric `bucket`.
 - Apply a **CASE** statement in the main query to to dynamically map bucket numbers to formatted duration strings.
-- Group the records by `bucket` and apply **COUNT()** to aggregate the total volume of converted customers within each duration bracket.
+- Group records by `bucket` and apply **COUNT()** to aggregate the total volume of converted customers within each duration bracket.
 - Order the final output sequentially by `bucket` to present the duration brackets in logical chronological sequence.
 
 #### Answer:
