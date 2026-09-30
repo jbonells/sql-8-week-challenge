@@ -33,7 +33,7 @@ FROM cookies
 
 #### Steps:
 - Define a Common Table Expression (`cookies`) querying the `users` table.
-- Group the records by `user_id` to aggregate cookies per user.
+- Group records by `user_id` to aggregate cookies per user.
 - Apply the **COUNT()** aggregate function to calculate the total number of cookies for each user.
 - Apply the **AVG()** aggregate function to calculate the average number of cookies per user across the aggregated CTE.
 - Wrap the calculation in **ROUND()** to format the average to 0 decimal places.
@@ -58,7 +58,7 @@ ORDER BY month;
 #### Steps:
 - Use an **INNER JOIN** on `cookie_id` to connect the `users` and `events` tables.
 - Use **EXTRACT(MONTH FROM ...)** to isolate the numerical month value from the event timestamps.
-- Group records by `month` to aggregate visit counts for each calendar month.
+- Group the joined records by `month` to aggregate visit counts for each calendar month.
 - Use **COUNT DISTINCT** to calculate the unique volume of `visits` per month.
 - (Optional) Order the final dataset in ascending sequence by `month` for structured presentation.
 
@@ -85,7 +85,7 @@ ORDER BY event_count DESC;
 
 #### Steps:
 - Use an **INNER JOIN** on `event_type` to connect the `events` and `event_identifier` tables.
-- Group records by `event_name` to aggregate metrics for each distinct event type.
+- Group the joined records by `event_name` to aggregate metrics for each distinct event type.
 - Apply the **COUNT()** aggregate function to calculate the total volume of events per group.
 - (Optional) Order the final dataset in descending sequence by `event_count` for structured presentation.
 
@@ -173,7 +173,7 @@ LIMIT 3;
 #### Steps:
 - Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
 - Apply a **WHERE** clause (`event_type = 1`) to isolate page view events.
-- Group records by `page_name` to aggregate metrics for each distinct page.
+- Group the filtered records by `page_name` to aggregate metrics for each distinct page.
 - Use the **COUNT()** aggregate function to tally the total volume of visits per page.
 - Order the aggregated results in descending sequence by `visits` to highlight the top pages.
 - Apply **LIMIT 3** clause to restrict the output to the top 3 most visited pages.
@@ -202,7 +202,7 @@ ORDER BY ph.product_category;
 #### Steps:
 - Use an **INNER JOIN** on `page_id` to connect the `events` and `page_hierarchy` tables.
 - Apply a **WHERE** clause (`product_category IS NOT NULL`) to exclude non-product page records.
-- Group records by `product_category` to aggregate metrics for each distinct category.
+- Group the filtered records by `product_category` to aggregate metrics for each distinct category.
 - Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to calculate total page views for each category.
 - Apply conditional aggregation using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to calculate total cart additions for each category.
 - (Optional) Order the final dataset in ascending sequence by `product_category` for structured presentation.
@@ -250,7 +250,7 @@ LIMIT 3;
 - Define a Common Table Expression (`product_cart_adds`) that joins the `events` and `page_hierarchy` tables on `page_id`.
 - Apply a **WHERE** clause (`product_category IS NOT NULL AND event_type = 2`) to isolate product cart additions.
 - Use an **INNER JOIN** on `visit_id` to connect the `product_cart_adds` and `purchase_visits` CTEs.
-- Group records by `page_name` to aggregate metrics for each distinct product.
+- Group the joined records by `page_name` to aggregate metrics for each distinct product.
 - Use the **COUNT()** aggregate function to tally total successful purchases per product.
 - Order the aggregated results in descending sequence by `purchases` to highlight top products.
 - Apply **LIMIT 3** clause to restrict the output to the top 3 most purchased products.
@@ -307,7 +307,7 @@ ORDER BY product;
 - Define a Common Table Expression (`purchase_visits`) querying the `events` table.
 - Use **SELECT DISTINCT** with a **WHERE** clause (`event_type = 3`) to isolate unique purchase visits.
 - Use a **LEFT JOIN** on `visit_id` to connect the `product_info` and `purchase_visits` CTEs.
-- Group records by `product` to aggregate metrics per product.
+- Group the joined records by `product` to aggregate metrics per product.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally total product page views.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally total product cart additions.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NULL`) to tally cart additions that were abandoned.
@@ -365,7 +365,7 @@ ORDER BY product_category;
 - Define a Common Table Expression (`purchase_visits`) querying the `events` table.
 - Use **SELECT DISTINCT** with a **WHERE** clause (`event_type = 3`) to isolate unique purchase visits.
 - Use a **LEFT JOIN** on `visit_id` to connect the `product_info` and `purchase_visits` CTEs.
-- Group records by `product_category` to aggregate metrics per product category.
+- Group the joined records by `product_category` to aggregate metrics per product category.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally total product page views for each category.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally total product cart additions for each category.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2 AND visit_id IS NULL`) to tally cart additions that were abandoned.
@@ -576,7 +576,7 @@ ORDER BY a.user_id;
 
 #### Steps:
 - Define a Common Table Expression (`aggregates`) that joins the `users` and `events` tables on `cookie_id`, with a **LEFT JOIN** to `page_hierarchy` on `page_id`.
-- Group records by `user_id` and `visit_id` to aggregate metrics per visit.
+- Group the joined records by `user_id` and `visit_id` to aggregate metrics per visit.
 - Apply the **MIN()** aggregate function to identify the earliest event timestamp per visit.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 1`) to tally page views events.
 - Apply conditional aggregations using **COUNT()** with a **FILTER (WHERE ...)** clause (`event_type = 2`) to tally cart additions events.
