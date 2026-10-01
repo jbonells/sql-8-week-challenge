@@ -15514,7 +15514,8 @@ VALUES
 	('NULL', 'NULL', 'NULL', '21246', '1.61', '0.68', '1191', '0.25'),
 	('NULL', 'NULL', 'NULL', 'NULL', '1.51', '0.63', '1193', '0.08'),
 	('NULL', 'NULL', 'NULL', 'NULL', '1.64', '0.62', '1194', '0');
-  
+
+
 -- Update NULL values
 UPDATE fresh_segments.interest_metrics
 SET _month = CASE WHEN _month = 'NULL' THEN NULL::INTEGER ELSE _month::INTEGER END;
@@ -15539,8 +15540,12 @@ VALUES
 	('{"month": 7, "year": 2018, "month_year": "07-2018", "a.attribute_interest_id": 6106, "average_composition": 9.93, "average_index": 5.31, "rank": 2, "percentile_rank": 99.73}'),
 	('{"month": 7, "year": 2018, "month_year": "07-2018", "a.attribute_interest_id": 18923, "average_composition": 10.85, "average_index": 5.29, "rank": 3, "percentile_rank": 99.59}');
 
+
+-- Update the fresh_segments.interest_metrics table by modifying the month_year column to be a date data type with the start of the month
 ALTER TABLE fresh_segments.interest_metrics
 ALTER COLUMN month_year TYPE DATE USING TO_DATE(month_year, 'MM-YYYY');
 
+
+-- Remove null values
 DELETE FROM interest_metrics
 WHERE month_year IS NULL;

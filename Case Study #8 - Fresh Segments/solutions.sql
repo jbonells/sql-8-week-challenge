@@ -148,7 +148,7 @@ SELECT
 	met.ranking,
 	met.percentile_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 WHERE map.interest_name IN ('Nutrition Conscious Eaters', 'Big Box Shoppers')
 ORDER BY map.interest_name, met.month_year;
@@ -201,7 +201,7 @@ SELECT
 	mc.month_year,
 	mc.composition
 FROM max_composition mc
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = mc.interest_id::INTEGER
 ORDER BY mc.composition DESC
 LIMIT 10;
@@ -232,7 +232,7 @@ SELECT
 	mc.month_year,
 	mc.composition
 FROM max_composition mc
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = mc.interest_id::INTEGER
 ORDER BY mc.composition ASC
 LIMIT 10;
@@ -242,7 +242,7 @@ SELECT
 	map.interest_name,
 	ROUND(AVG(met.ranking), 2) AS average_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
 ORDER BY average_ranking ASC
@@ -253,7 +253,7 @@ SELECT
 	map.interest_name,
 	ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
 ORDER BY std_dev_ranking DESC NULLS LAST
@@ -265,7 +265,7 @@ WITH std_dev_ranking AS (
 		map.interest_name,
 		ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
 	FROM interest_metrics met
-	JOIN interest_map map
+	INNER JOIN interest_map map
 		ON map.id = met.interest_id::INTEGER
 	GROUP BY map.interest_name
 	ORDER BY std_dev_ranking DESC NULLS LAST
@@ -279,7 +279,7 @@ ranked_metrics AS (
 		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking ASC) AS min_rank,
 		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking DESC) AS max_rank
 	FROM interest_metrics met
-	JOIN interest_map map
+	INNER JOIN interest_map map
 		ON map.id = met.interest_id::INTEGER
 	WHERE map.interest_name IN (SELECT interest_name FROM std_dev_ranking)
 )
@@ -306,7 +306,7 @@ WITH monthly_avg_composition AS (
         ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
     FROM interest_metrics
 ),
-ranked AS (
+ranked_interests AS (
     SELECT
         interest_id,
         month_year,
@@ -316,21 +316,132 @@ ranked AS (
 )
 
 SELECT
-    interest_id,
-    month_year,
-    average_composition
-FROM ranked
-WHERE ranking <= 10
-ORDER BY month_year, ranking;
+    map.interest_name,
+    ri.month_year,
+    ri.average_composition
+FROM ranked_interests ri
+INNER JOIN interest_map map
+	ON ri.interest_id::INTEGER = map.id
+WHERE ri.ranking <= 10
+ORDER BY ri.month_year, ri.ranking;
 
 -- 2. For all of these top 10 interests - which interest appears the most often?
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked_interests AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+),
+interest_ranking AS(
+	SELECT
+		map.interest_name,
+		ri.month_year,
+		ri.average_composition
+	FROM ranked_interests ri
+	INNER JOIN interest_map map
+		ON map.id = ri.interest_id::INTEGER
+	WHERE ri.ranking <= 10
+),
+counts AS (
+	SELECT
+		interest_name,
+		COUNT(interest_name) AS count,
+		RANK() OVER (ORDER BY COUNT(interest_name) DESC) AS overall_rank
+	FROM interest_ranking
+	GROUP BY interest_name
+)
 
+SELECT
+	interest_name,
+	count
+FROM counts
+WHERE overall_rank = 1;
 
 -- 3. What is the average of the average composition for the top 10 interests for each month?
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked_interests AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+)
 
+SELECT
+    month_year,
+    ROUND(AVG(average_composition), 2) AS average_top_10_composition
+FROM ranked_interests
+WHERE ranking <= 10
+GROUP BY month_year
+ORDER BY month_year;
 
 -- 4. What is the 3 month rolling average of the max average composition value from September 2018 to August 2019 and include the previous top ranking interests in the same output shown below.
+WITH monthly_avg_composition AS (
+	SELECT 
+		interest_id, 
+		month_year, 
+		ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+	FROM interest_metrics
+	WHERE month_year IS NOT NULL
+),
+monthly_max_ranked AS (
+	SELECT 
+		interest_id, 
+		month_year, 
+		average_composition,
+		ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+	FROM monthly_avg_composition
+),
+top_monthly_interest AS (
+	SELECT 
+		ri.month_year, 
+		map.interest_name, 
+		ri.average_composition AS max_index_composition
+	FROM monthly_max_ranked ri
+	INNER JOIN interest_map map
+	ON ri.interest_id::INTEGER = map.id
+	WHERE ri.ranking = 1
+),
+rolling_metrics AS (
+	SELECT 
+		month_year,
+		interest_name,
+		max_index_composition,
+		ROUND(
+			AVG(max_index_composition) OVER (
+				ORDER BY month_year
+				ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+			)
+			, 2
+		) AS rolling_3_month_avg,
+		LAG(interest_name, 1) OVER (ORDER BY month_year) AS previous_1_month_interest,
+		LAG(interest_name, 2) OVER (ORDER BY month_year) AS previous_2_month_interest
+	FROM top_monthly_interest
+)
 
-
--- 5. Provide a possible reason why the max average composition might change from month to month? Could it signal something is not quite right with the overall business model for Fresh Segments?
-
+SELECT 
+    month_year,
+    interest_name,
+    max_index_composition,
+    rolling_3_month_avg AS "3_month_moving_avg",
+    previous_1_month_interest AS "1_month_ago",
+    previous_2_month_interest AS "2_month_ago"
+FROM rolling_metrics
+WHERE month_year >= '2018-09-01' AND month_year <= '2019-08-31'
+ORDER BY month_year;

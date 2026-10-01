@@ -356,7 +356,7 @@ SELECT
 	met.ranking,
 	met.percentile_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 WHERE map.interest_name IN ('Nutrition Conscious Eaters', 'Big Box Shoppers')
 ORDER BY map.interest_name, met.month_year;
@@ -469,7 +469,7 @@ SELECT
 	mc.month_year,
 	mc.composition
 FROM max_composition mc
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = mc.interest_id::INTEGER
 ORDER BY mc.composition DESC
 LIMIT 10;
@@ -500,7 +500,7 @@ SELECT
 	mc.month_year,
 	mc.composition
 FROM max_composition mc
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = mc.interest_id::INTEGER
 ORDER BY mc.composition ASC
 LIMIT 10;
@@ -551,7 +551,7 @@ SELECT
 	map.interest_name,
 	ROUND(AVG(met.ranking), 2) AS average_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
 ORDER BY average_ranking ASC
@@ -561,7 +561,7 @@ LIMIT 5;
 #### Steps:
 - Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
 - Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
-- Use the **AVG()** aggregate function to calculate the average ranking per interest
+- Use the **AVG()** aggregate function to calculate the average ranking per interest.
 - Wrap it in the **ROUND()** function to format the result to two decimal places.
 - Order the final dataset in ascending sequence by `average_ranking` to bring the best-ranking interests to the top.
 - Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests.
@@ -581,7 +581,7 @@ SELECT
 	map.interest_name,
 	ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
 FROM interest_metrics met
-JOIN interest_map map
+INNER JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
 ORDER BY std_dev_ranking DESC NULLS LAST
@@ -612,7 +612,7 @@ WITH std_dev_ranking AS (
 		map.interest_name,
 		ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
 	FROM interest_metrics met
-	JOIN interest_map map
+	INNER JOIN interest_map map
 		ON map.id = met.interest_id::INTEGER
 	GROUP BY map.interest_name
 	ORDER BY std_dev_ranking DESC NULLS LAST
@@ -626,7 +626,7 @@ ranked_metrics AS (
 		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking ASC) AS min_rank,
 		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking DESC) AS max_rank
 	FROM interest_metrics met
-	JOIN interest_map map
+	INNER JOIN interest_map map
 		ON map.id = met.interest_id::INTEGER
 	WHERE map.interest_name IN (SELECT interest_name FROM std_dev_ranking)
 )
@@ -691,7 +691,7 @@ WITH monthly_avg_composition AS (
         ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
     FROM interest_metrics
 ),
-ranked AS (
+ranked_interests AS (
     SELECT
         interest_id,
         month_year,
@@ -701,78 +701,256 @@ ranked AS (
 )
 
 SELECT
-    interest_id,
-    month_year,
-    average_composition
-FROM ranked
-WHERE ranking <= 10
-ORDER BY month_year, ranking;
+    map.interest_name,
+    ri.month_year,
+    ri.average_composition
+FROM ranked_interests ri
+INNER JOIN interest_map map
+	ON ri.interest_id::INTEGER = map.id
+WHERE ri.ranking <= 10
+ORDER BY ri.month_year, ri.ranking;
 ```
 
 #### Steps:
 - Define a Common Table Expression (`monthly_avg_composition`) querying the `interest_metrics` table.
 - Divide `composition` by `index_value`, casting it to **NUMERIC**.
 - Wrap the calculation in the **ROUND()** function to format the result to two decimal places, aliasing it as `average_composition`.
-- Define a Common Table Expression (`ranked`) querying the `monthly_avg_composition` CTE.
+- Define a Common Table Expression (`ranked_interests`) querying the `monthly_avg_composition` CTE.
 - Apply the **ROW_NUMBER() OVER()** window function partitioned by `month_year` and ordered by `average_composition` descending to assign a rank to each interest per month.
 - Apply a **WHERE** clause (`ranking <= 10`) to filter the dataset, isolating only the top 10 average composition values for each month.
+- Use an **INNER JOIN** on `r.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `ranked_interests` CTE and the `interest_map` table.
 - Order the final dataset in ascending sequence by `month_year` and `ranking` to present the top 10 lists chronologically and by rank.
 
 #### Answer:
-| interest_id | month_year | average_composition |
-| ----------- | ---------- | ------------------- |
-| 6324        | 2018-07-01 | 7.36                |
-| 6284        | 2018-07-01 | 6.94                |
-| 4898        | 2018-07-01 | 6.78                |
-| 77          | 2018-07-01 | 6.61                |
-| 39          | 2018-07-01 | 6.51                |
-| 18619       | 2018-07-01 | 6.10                |
-| 6208        | 2018-07-01 | 5.72                |
-| 21060       | 2018-07-01 | 4.85                |
-| 21057       | 2018-07-01 | 4.80                |
-| 82          | 2018-07-01 | 4.71                |
+| interest_name                 | month_year | average_composition |
+| ----------------------------- | ---------- | ------------------- |
+| Las Vegas Trip Planners       | 2018-07-01 | 7.36                |
+| Gym Equipment Owners          | 2018-07-01 | 6.94                |
+| Cosmetics and Beauty Shoppers | 2018-07-01 | 6.78                |
+| Luxury Retail Shoppers        | 2018-07-01 | 6.61                |
+| Furniture Shoppers            | 2018-07-01 | 6.51                |
+| Asian Food Enthusiasts        | 2018-07-01 | 6.10                |
+| Recently Retired Individuals  | 2018-07-01 | 5.72                |
+| Family Adventures Travelers   | 2018-07-01 | 4.85                |
+| Work Comes First Travelers    | 2018-07-01 | 4.80                |
+| HDTV Researchers              | 2018-07-01 | 4.71                |
 
 - The query returns the top 10 interests by `average_composition` for all 14 months (140 rows total). Only 2018-07-01 is shown here for brevity.
 
 ### 2. For all of these top 10 interests - which interest appears the most often?
 ```sql
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked_interests AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+),
+interest_ranking AS(
+	SELECT
+		map.interest_name,
+		ri.month_year,
+		ri.average_composition
+	FROM ranked_interests ri
+	INNER JOIN interest_map map
+		ON map.id = ri.interest_id::INTEGER
+	WHERE ri.ranking <= 10
+),
+counts AS (
+	SELECT
+		interest_name,
+		COUNT(interest_name) AS count,
+		RANK() OVER (ORDER BY COUNT(interest_name) DESC) AS overall_rank
+	FROM interest_ranking
+	GROUP BY interest_name
+)
 
+SELECT
+	interest_name,
+	count
+FROM counts
+WHERE overall_rank = 1;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`monthly_avg_composition`) querying the `interest_metrics` table.
+- Divide `composition` by `index_value`, casting it to **NUMERIC**.
+- Wrap the calculation in the **ROUND()** function to format the result to two decimal places, aliasing it as `average_composition`.
+- Define a Common Table Expression (`ranked_interests`) querying the `monthly_avg_composition` CTE.
+- Apply the **ROW_NUMBER() OVER()** window function partitioned by `month_year` and ordered by `average_composition` descending to assign a rank to each interest per month.
+- Define a Common Table Expression (`interest_ranking`) that joins the `ranked_interests` CTE and the `interest_map` table on `map.id = r.interest_id`, casting `interest_id` to **INTEGER**.
+- Apply a **WHERE** clause (`ranking <= 10`) to filter the dataset, isolating only the top 10 average composition values for each month.
+- Define a Common Table Expression (`counts`) querying the `interest_ranking` CTE.
+- Group records by `interest_name` to aggregate the appearances for each distinct interest.
+- Apply the **COUNT()** aggregate function to calculate the total number of months each interest appeared in a top 10 list.
+- Apply the **RANK() OVER()** window function ordered by count descending to assign an overall rank to each interest based on its appearance frequency.
+- Apply a **WHERE** clause (`overall_rank = 1`) to isolate the interest(s) that appeared most frequently across all the monthly top 10 lists.
 
 #### Answer:
-
+| interest_name            | count |
+| ------------------------ | ----- |
+| Solar Energy Researchers | 10    |
+| Luxury Bedding Shoppers  | 10    |
+| Alabama Trip Planners    | 10    |
 
 ### 3. What is the average of the average composition for the top 10 interests for each month?
 ```sql
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked_interests AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+)
 
+SELECT
+    month_year,
+    ROUND(AVG(average_composition), 2) AS average_top_10_composition
+FROM ranked_interests
+WHERE ranking <= 10
+GROUP BY month_year
+ORDER BY month_year;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`monthly_avg_composition`) querying the `interest_metrics` table.
+- Divide `composition` by `index_value`, casting it to **NUMERIC**.
+- Wrap the calculation in the **ROUND()** function to format the result to two decimal places, aliasing it as `average_composition`.
+- Define a Common Table Expression (`ranked_interests`) querying the `monthly_avg_composition` CTE.
+- Apply the **ROW_NUMBER() OVER()** window function partitioned by `month_year` and ordered by `average_composition` descending to assign a rank to each interest per month.
+- Apply a **WHERE** clause (`ranking <= 10`) to filter the dataset, isolating only the top 10 average composition values for each month.
+- Group the filtered records by `month_year` to aggregate the appearances for each month.
+- Use the **AVG()** aggregate function to calculate the average composition per month.
+- Wrap the calculation in the **ROUND()** function to format the result to two decimal places.
+- (Optional) Order the final dataset in ascending sequence by `month_year` for structured presentation.
 
 #### Answer:
-
+| month_year | average_top_10_composition |
+| ---------- | -------------------------- |
+| 2018-07-01 | 6.04                       |
+| 2018-08-01 | 5.95                       |
+| 2018-09-01 | 6.90                       |
+| 2018-10-01 | 7.07                       |
+| 2018-11-01 | 6.62                       |
+| 2018-12-01 | 6.65                       |
+| 2019-01-01 | 6.40                       |
+| 2019-02-01 | 6.58                       |
+| 2019-03-01 | 6.17                       |
+| 2019-04-01 | 5.75                       |
+| 2019-05-01 | 3.54                       |
+| 2019-06-01 | 2.43                       |
+| 2019-07-01 | 2.77                       |
+| 2019-08-01 | 2.63                       |
 
 ### 4. What is the 3 month rolling average of the max average composition value from September 2018 to August 2019 and include the previous top ranking interests in the same output shown below.
 ```sql
+WITH monthly_avg_composition AS (
+	SELECT 
+		interest_id, 
+		month_year, 
+		ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+	FROM interest_metrics
+	WHERE month_year IS NOT NULL
+),
+monthly_max_ranked AS (
+	SELECT 
+		interest_id, 
+		month_year, 
+		average_composition,
+		ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+	FROM monthly_avg_composition
+),
+top_monthly_interest AS (
+	SELECT 
+		ri.month_year, 
+		map.interest_name, 
+		ri.average_composition AS max_index_composition
+	FROM monthly_max_ranked ri
+	INNER JOIN interest_map map
+	ON ri.interest_id::INTEGER = map.id
+	WHERE ri.ranking = 1
+),
+rolling_metrics AS (
+	SELECT 
+		month_year,
+		interest_name,
+		max_index_composition,
+		ROUND(
+			AVG(max_index_composition) OVER (
+				ORDER BY month_year
+				ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+			)
+			, 2
+		) AS rolling_3_month_avg,
+		LAG(interest_name, 1) OVER (ORDER BY month_year) AS previous_1_month_interest,
+		LAG(interest_name, 2) OVER (ORDER BY month_year) AS previous_2_month_interest
+	FROM top_monthly_interest
+)
 
+SELECT 
+    month_year,
+    interest_name,
+    max_index_composition,
+    rolling_3_month_avg AS "3_month_moving_avg",
+    previous_1_month_interest AS "1_month_ago",
+    previous_2_month_interest AS "2_month_ago"
+FROM rolling_metrics
+WHERE month_year >= '2018-09-01' AND month_year <= '2019-08-31'
+ORDER BY month_year;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`monthly_avg_composition`) querying the `interest_metrics` table.
+- Divide `composition` by `index_value`, casting it to **NUMERIC**.
+- Wrap the calculation in the **ROUND()** function to format the result to two decimal places, aliasing it as `average_composition`.
+- Define a Common Table Expression (`monthly_max_ranked`) querying the `monthly_avg_composition` CTE.
+- Apply the **ROW_NUMBER() OVER()** window function partitioned by `month_year` and ordered by `average_composition` descending to assign a rank to each interest per month.
+- Define a Common Table Expression (`top_monthly_interest`) that joins the `monthly_max_ranked` CTE and the `interest_map` table on `map.id = ri.interest_id`, casting `interest_id` to **INTEGER**.
+- Apply a **WHERE** clause (`ranking = 1`) to filter the dataset, isolating only the top 1 average composition values for each month.
+- Define a Common Table Expression (`rolling_metrics`) querying the `top_monthly_interest` CTE.
+- Apply the **AVG() OVER()** window function ordered by `month_year`.
+- Use `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` to calculate a 3-month moving average.
+- Wrap this moving average calculation in the **ROUND()** function to format the result to two decimal places.
+- Apply the **LAG() OVER()** window function ordered by `month_year` with an offset of 1 to fetch the `interest_name` from the previous month.
+- Apply the **LAG() OVER()** window function ordered by `month_year` with an offset of 2 to fetch the `interest_name` from two months prior.
+- Apply a **WHERE** clause (`month_year >= '2018-09-01' AND month_year <= '2019-08-31'`) to filter the dataset strictly to the date range between '2018-09-01' and '2019-08-31'.
+- (Optional) Order the final dataset in ascending sequence by `month_year` for structured presentation.
 
 #### Answer:
-
+| month_year | interest_name                 | max_index_composition | 3_month_moving_avg | 1_month_ago                | 2_month_ago                 |
+| ---------- | ----------------------------- | --------------------- | ------------------ | -------------------------- | --------------------------- |
+| 2018-09-01 | Work Comes First Travelers    | 8.26                  | 7.61               | Las Vegas Trip Planners    | Las Vegas Trip Planners     |
+| 2018-10-01 | Work Comes First Travelers    | 9.14                  | 8.20               | Work Comes First Travelers | Las Vegas Trip Planners     |
+| 2018-11-01 | Work Comes First Travelers    | 8.28                  | 8.56               | Work Comes First Travelers | Work Comes First Travelers  |
+| 2018-12-01 | Work Comes First Travelers    | 8.31                  | 8.58               | Work Comes First Travelers | Work Comes First Travelers  |
+| 2019-01-01 | Work Comes First Travelers    | 7.66                  | 8.08               | Work Comes First Travelers | Work Comes First Travelers  |
+| 2019-02-01 | Work Comes First Travelers    | 7.66                  | 7.88               | Work Comes First Travelers | Work Comes First Travelers  |
+| 2019-03-01 | Alabama Trip Planners         | 6.54                  | 7.29               | Work Comes First Travelers | Work Comes First Travelers  |
+| 2019-04-01 | Solar Energy Researchers      | 6.28                  | 6.83               | Alabama Trip Planners      | Work Comes First Travelers  |
+| 2019-05-01 | Readers of Honduran Content   | 4.41                  | 5.74               | Solar Energy Researchers   | Alabama Trip Planners       |
+| 2019-06-01 | Las Vegas Trip Planners       | 2.77                  | 4.49               | Readers of Honduran Content| Solar Energy Researchers    |
+| 2019-07-01 | Las Vegas Trip Planners       | 2.82                  | 3.33               | Las Vegas Trip Planners    | Readers of Honduran Content |
+| 2019-08-01 | Cosmetics and Beauty Shoppers | 2.73                  | 2.77               | Las Vegas Trip Planners    | Las Vegas Trip Planners     |
 
 ### 5. Provide a possible reason why the max average composition might change from month to month? Could it signal something is not quite right with the overall business model for Fresh Segments?
-```sql
-
-```
-
-#### Steps:
-- 
-
-#### Answer:
+- Significant month-to-month fluctuations in the max average composition suggest the underlying data pool is highly volatile.
+- This signals potential risks to the Fresh Segments business model:
+	- **Sample Instability:** The data samples used to define these interest segments might be too inconsistent to build reliable, long-term behavioral profiles.
+	- **Client Churn:** Rapid client turnover or the addition of massive, short-term clients can cause the dominant user base to change drastically each month.
+	- **Calibration Issues:** The baseline `index_value` might be poorly calibrated, making normal seasonal shifts appear as extreme anomalies.
