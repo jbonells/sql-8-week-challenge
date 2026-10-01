@@ -541,7 +541,7 @@ ORDER BY o1.month;
 - CTE 5: Rolling 30-Day Average Balance
 	- Define a Common Table Expression (`rolling_30_days`) querying the `running_balance` CTE.
 	- Apply the **AVG() OVER ()** window function partitioned by `customer_id` and order by `date`.
-	- Use `RANGE BETWEEN INTERVAL '29 days' PRECEDING AND CURRENT ROW` to compute a 30-day rolling average running balance (avg_30d_balance) for each transaction date.
+	- Use `RANGE BETWEEN INTERVAL '29 days' PRECEDING AND CURRENT ROW` to compute a 30-day rolling average running balance for each transaction date.
 - CTE 6: Monthly Average of Rolling 30-Day Balance
 	- Define a Common Table Expression (`customer_month_avg`) querying the `rolling_30_days` CTE.
 	- Use **DATE_TRUNC()** to truncate transaction dates to first-of-the-month dates.
