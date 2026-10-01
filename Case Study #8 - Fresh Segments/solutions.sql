@@ -240,12 +240,12 @@ LIMIT 10;
 -- 2. Which 5 interests had the lowest average ranking value?
 SELECT
 	map.interest_name,
-	ROUND(AVG(met.ranking), 2) AS avg_ranking
+	ROUND(AVG(met.ranking), 2) AS average_ranking
 FROM interest_metrics met
 JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
-ORDER BY avg_ranking ASC
+ORDER BY average_ranking ASC
 LIMIT 5;
 
 -- 3. Which 5 interests had the largest standard deviation in their percentile_ranking value?

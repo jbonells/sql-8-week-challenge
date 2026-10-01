@@ -549,12 +549,12 @@ LIMIT 10;
 ```sql
 SELECT
 	map.interest_name,
-	ROUND(AVG(met.ranking), 2) AS avg_ranking
+	ROUND(AVG(met.ranking), 2) AS average_ranking
 FROM interest_metrics met
 JOIN interest_map map
 	ON map.id = met.interest_id::INTEGER
 GROUP BY map.interest_name
-ORDER BY avg_ranking ASC
+ORDER BY average_ranking ASC
 LIMIT 5;
 ```
 
@@ -563,17 +563,17 @@ LIMIT 5;
 - Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
 - Use the **AVG()** aggregate function to calculate the average ranking per interest
 - Wrap it in the **ROUND()** function to format the result to two decimal places.
-- Order the final dataset in ascending sequence by `avg_ranking` to bring the best-ranking interests to the top.
+- Order the final dataset in ascending sequence by `average_ranking` to bring the best-ranking interests to the top.
 - Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests.
 
 #### Answer:
-| interest_name                  | avg_ranking |
-| ------------------------------ | ----------- |
-| Winter Apparel Shoppers        | 1.00        |
-| Fitness Activity Tracker Users | 4.11        |
-| Mens Shoe Shoppers             | 5.93        |
-| Elite Cycling Gear Shoppers    | 7.80        |
-| Shoe Shoppers                  | 9.36        |
+| interest_name                  | average_ranking |
+| ------------------------------ | --------------- |
+| Winter Apparel Shoppers        | 1.00            |
+| Fitness Activity Tracker Users | 4.11            |
+| Mens Shoe Shoppers             | 5.93            |
+| Elite Cycling Gear Shoppers    | 7.80            |
+| Shoe Shoppers                  | 9.36            |
 
 ### 3. Which 5 interests had the largest standard deviation in their percentile_ranking value?
 ```sql
@@ -649,7 +649,7 @@ ORDER BY interest_name;
 - Order the final dataset in descending sequence by `std_dev_ranking`, utilising **NULLS LAST** to ensure any null values drop to the bottom of the results.
 - Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests with the highest variance in their rankings.
 - Define a Common Table Expression (`ranked_metrics`) that joins the `interest_metrics` and `interest_map` tables on `map.id = met.interest_id`, casting `interest_id` to **INTEGER**.
-- Apply a **WHERE** clause with a subquery (`SELECT interest_name FROM std_dev_ranking`) to isolate the target interest segments
+- Apply a **WHERE** clause with a subquery to isolate the target interest segments.
 - Group records by `interest_name` to aggregate the final results.
 - Apply the **RANK() OVER()** window function partitioned by `interest_name` and ordered by `percentile_ranking` ascending to assign a rank where the lowest percentile gets rank 1.
 - Apply the **RANK() OVER()** window function partitioned by `interest_name` and ordered by `percentile_ranking` descending to assign a rank where the highest percentile gets rank 1.
