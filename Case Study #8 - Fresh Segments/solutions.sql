@@ -260,10 +260,38 @@ ORDER BY std_dev_ranking DESC NULLS LAST
 LIMIT 5;
 
 -- 4. For the 5 interests found in the previous question - what was minimum and maximum percentile_ranking values for each interest and its corresponding year_month value? Can you describe what is happening for these 5 interests?
-
-
--- 5. How would you describe our customers in this segment based off their composition and ranking values? What sort of products or services should we show to these customers and what should we avoid?
-
+WITH std_dev_ranking AS (
+	SELECT
+		map.interest_name,
+		ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
+	FROM interest_metrics met
+	JOIN interest_map map
+		ON map.id = met.interest_id::INTEGER
+	GROUP BY map.interest_name
+	ORDER BY std_dev_ranking DESC NULLS LAST
+	LIMIT 5
+),
+ranked_metrics AS (
+	SELECT
+		map.interest_name,
+		met.month_year,
+		met.percentile_ranking,
+		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking ASC) AS min_rank,
+		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking DESC) AS max_rank
+	FROM interest_metrics met
+	JOIN interest_map map
+		ON map.id = met.interest_id::INTEGER
+	WHERE map.interest_name IN (SELECT interest_name FROM std_dev_ranking)
+)
+SELECT
+	interest_name,
+	MAX(CASE WHEN min_rank = 1 THEN percentile_ranking END) AS min_percentile_ranking,
+	MAX(CASE WHEN min_rank = 1 THEN month_year END) AS min_month_year,
+	MAX(CASE WHEN max_rank = 1 THEN percentile_ranking END) AS max_percentile_ranking,
+	MAX(CASE WHEN max_rank = 1 THEN month_year END) AS max_month_year
+FROM ranked_metrics
+GROUP BY interest_name
+ORDER BY interest_name;
 
 
 -- D. Index Analysis

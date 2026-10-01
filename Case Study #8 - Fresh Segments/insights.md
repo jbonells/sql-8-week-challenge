@@ -562,7 +562,7 @@ LIMIT 5;
 - Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
 - Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
 - Use the **AVG()** aggregate function to calculate the average ranking per interest
-- Wrap it in the **ROUND()** function to limit the result to 2 decimal places.
+- Wrap it in the **ROUND()** function to format the result to two decimal places.
 - Order the final dataset in ascending sequence by `avg_ranking` to bring the best-ranking interests to the top.
 - Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests.
 
@@ -592,7 +592,7 @@ LIMIT 5;
 - Use an **INNER JOIN** on `met.interest_id = map.id`, casting `interest_id` to **INTEGER** to connect the `interest_metrics` and `interest_map` tables.
 - Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
 - Use the **STDDEV_SAMP()** function to calculate the sample standard deviation of the percentile ranking for each interest.
-- Cast the standard deviation to **NUMERIC**, then wrap it in the **ROUND()** function to limit the result to 2 decimal places.
+- Cast the standard deviation to **NUMERIC**, then wrap it in the **ROUND()** function to format the result to two decimal places.
 - Order the final dataset in descending sequence by `std_dev_ranking`, utilising **NULLS LAST** to ensure any null values drop to the bottom of the results.
 - Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests with the highest variance in their rankings.
 
@@ -607,25 +607,75 @@ LIMIT 5;
 
 ### 4. For the 5 interests found in the previous question - what was minimum and maximum percentile_ranking values for each interest and its corresponding year_month value? Can you describe what is happening for these 5 interests?
 ```sql
-
+WITH std_dev_ranking AS (
+	SELECT
+		map.interest_name,
+		ROUND(STDDEV_SAMP(met.percentile_ranking)::NUMERIC, 2) AS std_dev_ranking
+	FROM interest_metrics met
+	JOIN interest_map map
+		ON map.id = met.interest_id::INTEGER
+	GROUP BY map.interest_name
+	ORDER BY std_dev_ranking DESC NULLS LAST
+	LIMIT 5
+),
+ranked_metrics AS (
+	SELECT
+		map.interest_name,
+		met.month_year,
+		met.percentile_ranking,
+		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking ASC) AS min_rank,
+		RANK() OVER (PARTITION BY map.interest_name ORDER BY met.percentile_ranking DESC) AS max_rank
+	FROM interest_metrics met
+	JOIN interest_map map
+		ON map.id = met.interest_id::INTEGER
+	WHERE map.interest_name IN (SELECT interest_name FROM std_dev_ranking)
+)
+SELECT
+	interest_name,
+	MAX(CASE WHEN min_rank = 1 THEN percentile_ranking END) AS min_percentile_ranking,
+	MAX(CASE WHEN min_rank = 1 THEN month_year END) AS min_month_year,
+	MAX(CASE WHEN max_rank = 1 THEN percentile_ranking END) AS max_percentile_ranking,
+	MAX(CASE WHEN max_rank = 1 THEN month_year END) AS max_month_year
+FROM ranked_metrics
+GROUP BY interest_name
+ORDER BY interest_name;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`std_dev_ranking`) that joins the `interest_metrics` and `interest_map` tables on `map.id = met.interest_id`, casting `interest_id` to **INTEGER**.
+- Group the joined records by `interest_name` to aggregate the ranking data for each distinct interest.
+- Use the **STDDEV_SAMP()** function to calculate the sample standard deviation of the percentile ranking for each interest.
+- Cast the standard deviation to **NUMERIC**, then wrap it in the **ROUND()** function to format the result to two decimal places.
+- Order the final dataset in descending sequence by `std_dev_ranking`, utilising **NULLS LAST** to ensure any null values drop to the bottom of the results.
+- Apply a **LIMIT 5** clause to restrict the final output to only the top 5 interests with the highest variance in their rankings.
+- Define a Common Table Expression (`ranked_metrics`) that joins the `interest_metrics` and `interest_map` tables on `map.id = met.interest_id`, casting `interest_id` to **INTEGER**.
+- Apply a **WHERE** clause with a subquery (`SELECT interest_name FROM std_dev_ranking`) to isolate the target interest segments
+- Group records by `interest_name` to aggregate the final results.
+- Apply the **RANK() OVER()** window function partitioned by `interest_name` and ordered by `percentile_ranking` ascending to assign a rank where the lowest percentile gets rank 1.
+- Apply the **RANK() OVER()** window function partitioned by `interest_name` and ordered by `percentile_ranking` descending to assign a rank where the highest percentile gets rank 1.
+- Apply a **CASE** statement inside the **MAX()** aggregate function to extract the `percentile_ranking` where `min_rank = 1`, pivoting it into a single row.
+- Apply a **CASE** statement inside the **MAX()** aggregate function to extract the `month_year` where `min_rank = 1`, pivoting it into a single row.
+- Apply a **CASE** statement inside the **MAX()** aggregate function to extract the `percentile_ranking` where `max_rank = 1`, pivoting it into a single row.
+- Apply a **CASE** statement inside the **MAX()** aggregate function to extract the `month_year` where `max_rank = 1`, pivoting it into a single row.
+- (Optional) Order the final dataset in ascending sequence by `interest_name` for structured presentation.
 
 #### Answer:
+| interest_name                          | min_percentile_ranking | min_month_year | max_percentile_ranking | max_month_year |
+| -------------------------------------- | ---------------------- | -------------- | ---------------------- | -------------- |
+| Android Fans                           | 4.84                   | 2019-03-01     | 75.03                  | 2018-07-01     |
+| Blockbuster Movie Fans                 | 2.26                   | 2019-08-01     | 60.63                  | 2018-07-01     |
+| Entertainment Industry Decision Makers | 11.23                  | 2019-08-01     | 86.15                  | 2018-07-01     |
+| TV Junkies                             | 10.01                  | 2019-08-01     | 93.28                  | 2018-07-01     |
+| Techies                                | 7.92                   | 2019-08-01     | 86.69                  | 2018-07-01     |
 
+- Each interest's highest percentile ranking occurs in its earliest recorded month (2018-07), which is also the most densely-populated month in the dataset overall.
+- Their lowest percentile rankings occur later, in 2019, after several months with no recorded data at all.
+- This pattern most likely reflects these interests having too few, too volatile data points to represent a stable underlying trend.
 
 ### 5. How would you describe our customers in this segment based off their composition and ranking values? What sort of products or services should we show to these customers and what should we avoid?
-```sql
-
-```
-
-#### Steps:
-- 
-
-#### Answer:
-
+- This segment skews toward an active, style-conscious, premium-spending customer base — combining strong, consistently top-ranked interest in performance/athletic categories with high composition in luxury retail, boutique hospitality, and beauty/self-care.
+- **Show:** premium/performance athletic gear, seasonal sportswear, luxury retail and boutique hospitality offerings, beauty and premium home goods — framed around quality and performance rather than price.
+- **Avoid:** budget-framed messaging, mainstream gaming/pop-culture fandom campaigns, and economy-tier vehicle marketing — none of which this segment shows notable affinity for.
 
 
 ## D. Index Analysis
