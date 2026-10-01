@@ -723,7 +723,7 @@ ORDER BY month;
 - Apply **COALESCE()** to replace `NULL` values with 0 for inactive days.
 - Use the **SUM() OVER ()** window function partitioned by `customer_id` and ordered by `date` to compute each customer's daily running balance.
 - Define a Common Table Expression (`daily_interest`) to iteratively compute compounding daily interest and dynamic daily balances.
-- Establish the anchor member by filtering daily_balance for the minimum start date, seeding the starting balance rounded to 2 decimal places and setting initial `interest_earned` to 0.
+- Establish the anchor member by filtering `daily_balance` for the minimum start date, seeding the starting balance rounded to 2 decimal places and setting initial `interest_earned` to 0.
 - Construct the recursive member using **UNION ALL**, joining `daily_calendar`, `daily_activity`, and the prior day's recursive results from `daily_interest` on `date = date + INTERVAL '1 day'` and `customer_id`.
 - Use the **GREATEST()** function to restrict interest calculations strictly to positive prior balances, preventing overdrawn balances from generating negative interest.
 - Compute daily compounded balance and daily interest.
