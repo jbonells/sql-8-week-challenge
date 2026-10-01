@@ -190,7 +190,7 @@ ORDER BY region, month;
 | AFRICA | 8     | 1,809,596,890 |
 | AFRICA | 9     | 276,320,987   |
 
-- **Note:** The table above displays a sample of the full result set (filtered to the AFRICA region).
+- The query returns the total sales for all region for all months (49 rows total). Only the AFRICA region is shown here for brevity.
 
 ### 5. What is the total count of transactions for each platform
 ```sql
@@ -244,8 +244,19 @@ ORDER BY year, month;
 | 2018 | 7     | 97.75             | 2.25               |
 | 2018 | 8     | 97.71             | 2.29               |
 | 2018 | 9     | 97.68             | 2.32               |
-
-- **Note:** The table above displays a sample of the full result set (filtered to the 2018 year).
+| 2019 | 3     | 97.71             | 2.29               |
+| 2019 | 4     | 97.80             | 2.20               |
+| 2019 | 5     | 97.52             | 2.48               |
+| 2019 | 6     | 97.42             | 2.58               |
+| 2019 | 7     | 97.35             | 2.65               |
+| 2019 | 8     | 97.21             | 2.79               |
+| 2019 | 9     | 97.09             | 2.91               |
+| 2020 | 3     | 97.30             | 2.70               |
+| 2020 | 4     | 96.96             | 3.04               |
+| 2020 | 5     | 96.71             | 3.29               |
+| 2020 | 6     | 96.80             | 3.20               |
+| 2020 | 7     | 96.67             | 3.33               |
+| 2020 | 8     | 96.51             | 3.49               |
 
 ### 7. What is the percentage of sales by demographic for each year in the dataset?
 ```sql
