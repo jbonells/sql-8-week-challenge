@@ -281,7 +281,7 @@ ORDER BY fc.customer_id, fc.month;
 | 3           | 3     | -1222           |
 | 3           | 4     | -729            |
 
-- I am only showing the first 3 customers for reference.
+- The query returns the closing balance for each customer at the end of the month (2000 rows total). Only the first 3 customers are shown here for brevity.
 
 ### 5. What is the percentage of customers who increase their closing balance by more than 5%?
 ```sql
