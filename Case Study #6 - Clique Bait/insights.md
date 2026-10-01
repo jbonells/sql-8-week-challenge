@@ -617,4 +617,4 @@ ORDER BY a.user_id;
 | 3       | dda9ae   | 2020-04-08 18:24:44.8597   | 10         | 8         | 1        | null                              | 1          | 1     | Salmon, Tuna, Russian Caviar, Black Truffle, Abalone, Lobster, Crab, Oyster           |
 | 3       | eb13cd   | 2020-03-11 21:36:37.222763 | 1          | 0         | 0        | Half Off - Treat Your Shellf(ish) | 0          | 0     | null                                                                                  |
 
-- I am only showing the first 3 users for reference.
+- The query returns every unique `visit_id` record (3564 rows total). Only the first 3 users are shown here for brevity.
