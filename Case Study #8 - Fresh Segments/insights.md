@@ -684,14 +684,55 @@ ORDER BY interest_name;
 
 ### 1. What is the top 10 interests by the average composition for each month?
 ```sql
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+)
 
+SELECT
+    interest_id,
+    month_year,
+    average_composition
+FROM ranked
+WHERE ranking <= 10
+ORDER BY month_year, ranking;
 ```
 
 #### Steps:
-- 
+- Define a Common Table Expression (`monthly_avg_composition`) querying the `interest_metrics` table.
+- Divide `composition` by `index_value`, casting it to **NUMERIC**.
+- Wrap the calculation in the **ROUND()** function to format the result to two decimal places, aliasing it as `average_composition`.
+- Define a Common Table Expression (`ranked`) querying the `monthly_avg_composition` CTE.
+- Apply the **ROW_NUMBER() OVER()** window function partitioned by `month_year` and ordered by `average_composition` descending to assign a rank to each interest per month.
+- Apply a **WHERE** clause (`ranking <= 10`) to filter the dataset, isolating only the top 10 average composition values for each month.
+- Order the final dataset in ascending sequence by `month_year` and `ranking` to present the top 10 lists chronologically and by rank.
 
 #### Answer:
+| interest_id | month_year | average_composition |
+| ----------- | ---------- | ------------------- |
+| 6324        | 2018-07-01 | 7.36                |
+| 6284        | 2018-07-01 | 6.94                |
+| 4898        | 2018-07-01 | 6.78                |
+| 77          | 2018-07-01 | 6.61                |
+| 39          | 2018-07-01 | 6.51                |
+| 18619       | 2018-07-01 | 6.10                |
+| 6208        | 2018-07-01 | 5.72                |
+| 21060       | 2018-07-01 | 4.85                |
+| 21057       | 2018-07-01 | 4.80                |
+| 82          | 2018-07-01 | 4.71                |
 
+- The query returns the top 10 interests by `average_composition` for all 14 months (140 rows total). Only 2018-07-01 is shown here for brevity.
 
 ### 2. For all of these top 10 interests - which interest appears the most often?
 ```sql

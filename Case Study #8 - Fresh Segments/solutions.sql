@@ -299,7 +299,29 @@ ORDER BY interest_name;
 -- Average composition can be calculated by dividing the composition column by the index_value column rounded to 2 decimal places.
 
 -- 1. What is the top 10 interests by the average composition for each month?
+WITH monthly_avg_composition AS (
+    SELECT
+        interest_id,
+        month_year,
+        ROUND((composition / index_value)::NUMERIC, 2) AS average_composition
+    FROM interest_metrics
+),
+ranked AS (
+    SELECT
+        interest_id,
+        month_year,
+        average_composition,
+        ROW_NUMBER() OVER (PARTITION BY month_year ORDER BY average_composition DESC) AS ranking
+    FROM monthly_avg_composition
+)
 
+SELECT
+    interest_id,
+    month_year,
+    average_composition
+FROM ranked
+WHERE ranking <= 10
+ORDER BY month_year, ranking;
 
 -- 2. For all of these top 10 interests - which interest appears the most often?
 
