@@ -951,6 +951,6 @@ ORDER BY month_year;
 ### 5. Provide a possible reason why the max average composition might change from month to month? Could it signal something is not quite right with the overall business model for Fresh Segments?
 - Significant month-to-month fluctuations in the max average composition suggest the underlying data pool is highly volatile.
 - This signals potential risks to the Fresh Segments business model:
-	- **Sample Instability:** The data samples used to define these interest segments might be too inconsistent to build reliable, long-term behavioral profiles.
+	- **Sample Instability:** The data samples used to define these interest segments might be too inconsistent to build reliable, long-term behavioural profiles.
 	- **Client Churn:** Rapid client turnover or the addition of massive, short-term clients can cause the dominant user base to change drastically each month.
 	- **Calibration Issues:** The baseline `index_value` might be poorly calibrated, making normal seasonal shifts appear as extreme anomalies.
